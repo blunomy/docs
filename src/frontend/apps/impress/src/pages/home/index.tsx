@@ -5,7 +5,6 @@ import { Loading } from '@/components';
 import { gotoLogin, useAuth } from '@/features/auth';
 import { NextPageWithLayout } from '@/types/next';
 
-
 const Page: NextPageWithLayout = () => {
   const { authenticated } = useAuth();
   const { replace } = useRouter();
