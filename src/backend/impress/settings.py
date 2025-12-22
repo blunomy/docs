@@ -166,6 +166,11 @@ class Base(Configuration):
         environ_name="AWS_STORAGE_BUCKET_NAME",
         environ_prefix=None,
     )
+    AWS_S3_ADDRESSING_STYLE = values.Value(
+        environ_name="AWS_S3_ADDRESSING_STYLE",
+        environ_prefix=None,
+    )
+
 
     # Document images
     DOCUMENT_IMAGE_MAX_SIZE = values.IntegerValue(
