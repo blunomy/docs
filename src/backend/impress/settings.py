@@ -17,6 +17,7 @@ from socket import gethostbyname, gethostname
 from django.utils.translation import gettext_lazy as _
 
 import sentry_sdk
+from botocore.config import Config
 from configurations import Configuration, values
 from csp.constants import NONE
 from lasuite.configuration.values import SecretFileValue
@@ -1039,10 +1040,10 @@ class Production(Base):
     # See: https://github.com/boto/boto3/issues/4570
     # See: https://github.com/jschneier/django-storages/issues/1532
     # See: https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
-    AWS_S3_CLIENT_CONFIG = {
-        "request_checksum_calculation": "when_required",
-        "response_checksum_validation": "when_required"
-    }
+    AWS_S3_CLIENT_CONFIG = Config(
+        request_checksum_calculation="when_required",
+        response_checksum_validation="when_required"
+    )
 
     # SECURE_PROXY_SSL_HEADER allows to fix the scheme in Django's HttpRequest
     # object when your application is behind a reverse proxy.
