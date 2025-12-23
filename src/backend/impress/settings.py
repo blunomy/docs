@@ -170,16 +170,6 @@ class Base(Configuration):
         environ_name="AWS_S3_ADDRESSING_STYLE",
         environ_prefix=None,
     )
-    # Some shenanigans with AWS SDK. Something about XML API not working with chunked encoding
-    # See: https://docs.cloud.google.com/storage/docs/migrating#methods-comparison
-    # and some new defaults with AWS SDK + Boto3
-    # See: https://github.com/boto/boto3/issues/4570
-    # See: https://github.com/jschneier/django-storages/issues/1532
-    # See: https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
-    AWS_S3_REQUEST_CHECKSUM_CALCULATION = {
-        "request_checksum_calculation": "when_required",
-        "response_checksum_validation": "when_required"
-    }
 
     # Document images
     DOCUMENT_IMAGE_MAX_SIZE = values.IntegerValue(
@@ -1042,6 +1032,17 @@ class Production(Base):
         False,
         environ_name="USE_X_FORWARDED_HOST"
     )
+
+    # Some shenanigans with AWS SDK. Something about XML API not working with chunked encoding
+    # See: https://docs.cloud.google.com/storage/docs/migrating#methods-comparison
+    # and some new defaults with AWS SDK + Boto3
+    # See: https://github.com/boto/boto3/issues/4570
+    # See: https://github.com/jschneier/django-storages/issues/1532
+    # See: https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
+    AWS_S3_CLIENT_CONFIG = {
+        "request_checksum_calculation": "when_required",
+        "response_checksum_validation": "when_required"
+    }
 
     # SECURE_PROXY_SSL_HEADER allows to fix the scheme in Django's HttpRequest
     # object when your application is behind a reverse proxy.

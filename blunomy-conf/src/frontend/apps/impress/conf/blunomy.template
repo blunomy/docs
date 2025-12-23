@@ -36,19 +36,20 @@ server {
 
       proxy_read_timeout 86400;
       proxy_send_timeout 86400;
-
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header Host $host;
+  
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-Host $http_host;
+      proxy_set_header Origin $http_origin;
   }
 
   # Collaboration API
   location /collaboration/api/ {
-      proxy_pass http://${YPROVIDER_HOST}:4444;
+      proxy_pass https://${YPROVIDER_HOST};
       proxy_set_header Host ${YPROVIDER_HOST};
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-Host $http_host;
   }
 
   location / {
