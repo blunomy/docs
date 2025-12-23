@@ -170,7 +170,16 @@ class Base(Configuration):
         environ_name="AWS_S3_ADDRESSING_STYLE",
         environ_prefix=None,
     )
-
+    # Some shenanigans with AWS SDK. Something about XML API not working with chunked encoding
+    # See: https://docs.cloud.google.com/storage/docs/migrating#methods-comparison
+    # and some new defaults with AWS SDK + Boto3
+    # See: https://github.com/boto/boto3/issues/4570
+    # See: https://github.com/jschneier/django-storages/issues/1532
+    # See: https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
+    AWS_S3_REQUEST_CHECKSUM_CALCULATION = {
+        "request_checksum_calculation": "when_required",
+        "response_checksum_validation": "when_required"
+    }
 
     # Document images
     DOCUMENT_IMAGE_MAX_SIZE = values.IntegerValue(
