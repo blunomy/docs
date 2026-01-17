@@ -2,8 +2,7 @@ import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 
 import { Loading } from '@/components';
-import { useAuth } from '@/features/auth';
-import { HomeContent } from '@/features/home';
+import { gotoLogin, useAuth } from '@/features/auth';
 import { NextPageWithLayout } from '@/types/next';
 
 const Page: NextPageWithLayout = () => {
@@ -14,18 +13,15 @@ const Page: NextPageWithLayout = () => {
    * If the user is authenticated we redirect him to the index page (grid).
    */
   useEffect(() => {
-    if (!authenticated) {
-      return;
+    if (authenticated) {
+      void replace('/');
+    } else {
+      // If not authenticated, go to login page
+      gotoLogin();
     }
-
-    void replace('/');
   }, [authenticated, replace]);
 
-  if (authenticated) {
-    return <Loading $height="100vh" $width="100vw" />;
-  }
-
-  return <HomeContent />;
+  return <Loading $height="100vh" $width="100vw" />;
 };
 
 export default Page;
