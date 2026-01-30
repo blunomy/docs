@@ -26,8 +26,6 @@ export const updateDoc = async ({
     }),
   });
 
-  console.log('Update params response:', params);
-
   if (!response.ok) {
     throw new APIError('Failed to update the doc', await errorCauses(response));
   }
