@@ -8,9 +8,13 @@ export const CONFIG = {
   CRISP_WEBSITE_ID: null,
   COLLABORATION_WS_URL: 'ws://localhost:4444/collaboration/ws/',
   COLLABORATION_WS_NOT_CONNECTED_READY_ONLY: true,
+  CONVERSION_FILE_EXTENSIONS_ALLOWED: ['.docx', '.md'],
+  CONVERSION_FILE_MAX_SIZE: 20971520,
   ENVIRONMENT: 'development',
   FRONTEND_CSS_URL: null,
+  FRONTEND_JS_URL: null,
   FRONTEND_HOMEPAGE_FEATURE_ENABLED: true,
+  FRONTEND_SILENT_LOGIN_ENABLED: false,
   FRONTEND_THEME: null,
   MEDIA_BASE_URL: 'http://localhost:8083',
   LANGUAGES: [
@@ -159,7 +163,7 @@ export const verifyDocName = async (page: Page, docName: string) => {
     await expect(
       page.getByRole('textbox', { name: 'Document title' }),
     ).toContainText(docName, {
-      timeout: 1000,
+      timeout: 3000,
     });
   } catch {
     await expect(page.getByRole('heading', { name: docName })).toBeVisible();
@@ -223,7 +227,9 @@ export const updateDocTitle = async (page: Page, title: string) => {
   await expect(input).toHaveText('');
   await expect(input).toBeVisible();
   await input.click();
-  await input.fill(title);
+  await input.fill(title, {
+    force: true,
+  });
   await input.click();
   await input.blur();
   await verifyDocName(page, title);
@@ -326,6 +332,10 @@ export const TestLanguage = {
   German: {
     label: 'Deutsch',
     expectedLocale: ['de-de'],
+  },
+  Swedish: {
+    label: 'Svenska',
+    expectedLocale: ['sv-se'],
   },
 } as const;
 

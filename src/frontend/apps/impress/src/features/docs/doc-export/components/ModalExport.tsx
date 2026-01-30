@@ -9,12 +9,12 @@ import {
   Select,
   VariantType,
   useToastProvider,
-} from '@openfun/cunningham-react';
+} from '@gouvfr-lasuite/cunningham-react';
 import { DocumentProps, pdf } from '@react-pdf/renderer';
 import jsonemoji from 'emoji-datasource-apple' assert { type: 'json' };
 import i18next from 'i18next';
 import JSZip from 'jszip';
-import { cloneElement, isValidElement, useMemo, useState } from 'react';
+import { cloneElement, isValidElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
@@ -25,15 +25,15 @@ import { Doc, useTrans } from '@/docs/doc-management';
 import { fallbackLng } from '@/i18n/config';
 
 import { exportCorsResolveFileUrl } from '../api/exportResolveFileUrl';
-import { TemplatesOrdering, useTemplates } from '../api/useTemplates';
 import { docxDocsSchemaMappings } from '../mappingDocx';
 import { odtDocsSchemaMappings } from '../mappingODT';
 import { pdfDocsSchemaMappings } from '../mappingPDF';
+import { downloadFile } from '../utils';
 import {
   addMediaFilesToZip,
-  downloadFile,
   generateHtmlDocument,
-} from '../utils';
+  improveHtmlAccessibility,
+} from '../utils_html';
 
 enum DocDownloadFormat {
   HTML = 'html',
@@ -49,36 +49,14 @@ interface ModalExportProps {
 
 export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
   const { t } = useTranslation();
-  const { data: templates } = useTemplates({
-    ordering: TemplatesOrdering.BY_CREATED_ON_DESC,
-  });
   const { toast } = useToastProvider();
   const { editor } = useEditorStore();
-  const [templateSelected, setTemplateSelected] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
   const [format, setFormat] = useState<DocDownloadFormat>(
     DocDownloadFormat.PDF,
   );
   const { untitledDocument } = useTrans();
   const mediaUrl = useMediaUrl();
-
-  const templateOptions = useMemo(() => {
-    const templateOptions = (templates?.pages || [])
-      .map((page) =>
-        page.results.map((template) => ({
-          label: template.title,
-          value: template.code,
-        })),
-      )
-      .flat();
-
-    templateOptions.unshift({
-      label: t('Empty template'),
-      value: '',
-    });
-
-    return templateOptions;
-  }, [t, templates?.pages]);
 
   async function onSubmit() {
     if (!editor) {
@@ -96,13 +74,7 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
 
     const documentTitle = doc.title || untitledDocument;
 
-    const html = templateSelected;
-    let exportDocument = editor.document;
-    if (html) {
-      const blockTemplate = await editor.tryParseHTMLToBlocks(html);
-      exportDocument = [...blockTemplate, ...editor.document];
-    }
-
+    const exportDocument = editor.document;
     let blobExport: Blob;
     if (format === DocDownloadFormat.PDF) {
       const exporter = new PDFExporter(editor.schema, pdfDocsSchemaMappings, {
@@ -161,10 +133,12 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
 
       const zip = new JSZip();
 
+      improveHtmlAccessibility(parsedDocument, documentTitle);
       await addMediaFilesToZip(parsedDocument, zip, mediaUrl);
 
       const lang = i18next.language || fallbackLng;
-      const editorHtmlWithLocalMedia = parsedDocument.body.innerHTML;
+      const body = parsedDocument.body;
+      const editorHtmlWithLocalMedia = body ? body.innerHTML : '';
 
       const htmlContent = generateHtmlDocument(
         documentTitle,
@@ -285,17 +259,6 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
           value={format}
           onChange={(options) =>
             setFormat(options.target.value as DocDownloadFormat)
-          }
-        />
-        <Select
-          clearable={false}
-          fullWidth
-          label={t('Template')}
-          options={templateOptions}
-          value={templateSelected}
-          disabled={format === DocDownloadFormat.HTML}
-          onChange={(options) =>
-            setTemplateSelected(options.target.value as string)
           }
         />
 

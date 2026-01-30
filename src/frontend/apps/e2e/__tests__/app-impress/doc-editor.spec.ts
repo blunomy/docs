@@ -604,7 +604,7 @@ test.describe('Doc Editor', () => {
 
     await verifyDocName(page, randomDoc);
 
-    const editor = await openSuggestionMenu({ page });
+    const { editor } = await openSuggestionMenu({ page });
     await page.getByText('Embedded file').click();
     await page.getByText('Upload file').click();
 
@@ -880,14 +880,18 @@ test.describe('Doc Editor', () => {
     // Wait for the interlink to be created and rendered
     const editor = await getEditor({ page });
 
-    const interlinkChild2 = editor.getByRole('button', {
-      name: docChild2,
-    });
+    const interlinkChild = editor
+      .locator('.--docs--interlinking-link-inline-content')
+      .first();
 
-    await expect(interlinkChild2).toBeVisible({ timeout: 10000 });
-    await expect(interlinkChild2).toContainText('😀');
-    await expect(interlinkChild2.locator('svg').first()).toBeHidden();
-    await interlinkChild2.click();
+    await expect(interlinkChild).toBeVisible({ timeout: 10000 });
+    await expect(interlinkChild).toContainText('😀');
+    await expect(interlinkChild).toContainText(docChild2);
+    await expect(interlinkChild.locator('svg').first()).toBeHidden();
+    await interlinkChild.click();
+
+    // wait for navigation to complete
+    await page.waitForTimeout(1000);
 
     await verifyDocName(page, docChild2);
 
@@ -897,11 +901,9 @@ test.describe('Doc Editor', () => {
     await input.fill(docChild1);
     await searchContainer.getByText(docChild1).click();
 
-    const interlinkChild1 = editor.getByRole('button', {
-      name: docChild1,
-    });
-    await expect(interlinkChild1).toBeVisible({ timeout: 10000 });
-    await expect(interlinkChild1.locator('svg').first()).toBeVisible();
+    await expect(interlinkChild).toContainText(docChild1);
+    await expect(interlinkChild).toBeVisible({ timeout: 10000 });
+    await expect(interlinkChild.locator('svg').first()).toBeVisible();
 
     await page.keyboard.press('@');
 
@@ -961,13 +963,35 @@ test.describe('Doc Editor', () => {
   test('it embeds PDF', async ({ page, browserName }) => {
     await createDoc(page, 'doc-toolbar', browserName, 1);
 
+    await page.getByRole('button', { name: 'Share' }).click();
+    await updateShareLink(page, 'Public', 'Reading');
+
+    await page.getByRole('button', { name: 'Close the share modal' }).click();
+
     await openSuggestionMenu({ page });
     await page.getByText('Embed a PDF file').click();
 
-    const pdfBlock = page.locator('div[data-content-type="pdf"]').first();
+    const pdfBlock = page.locator('div[data-content-type="pdf"]').last();
 
     await expect(pdfBlock).toBeVisible();
 
+    // Try with invalid PDF first
+    await page.getByText(/Add (PDF|file)/).click();
+
+    await page.locator('[data-test="embed-tab"]').click();
+
+    await page
+      .locator('[data-test="embed-input"]')
+      .fill('https://example.test/test.test');
+
+    await page.locator('[data-test="embed-input-button"]').click();
+
+    await expect(page.getByText('Invalid or missing PDF file')).toBeVisible();
+
+    await openSuggestionMenu({ page });
+    await page.getByText('Embed a PDF file').click();
+
+    // Now with a valid PDF
     await page.getByText(/Add (PDF|file)/).click();
     const fileChooserPromise = page.waitForEvent('filechooser');
     const downloadPromise = page.waitForEvent('download');
@@ -992,7 +1016,7 @@ test.describe('Doc Editor', () => {
     await expect(pdfEmbed).toHaveAttribute('role', 'presentation');
 
     // Check download with original filename
-    await page.locator('.bn-block-content[data-content-type="pdf"]').click();
+    await pdfBlock.click();
     await page.locator('[data-test="downloadfile"]').click();
 
     const download = await downloadPromise;

@@ -30,6 +30,10 @@ from sentry_sdk.integrations.logging import ignore_logger
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.getenv("DATA_DIR", os.path.join("/", "data"))
 
+KB = 1024
+MB = KB * KB
+GB = MB * KB
+
 
 def get_release():
     """
@@ -174,7 +178,7 @@ class Base(Configuration):
 
     # Document images
     DOCUMENT_IMAGE_MAX_SIZE = values.IntegerValue(
-        10 * (2**20),  # 10MB
+        10 * MB,  # 10MB
         environ_name="DOCUMENT_IMAGE_MAX_SIZE",
         environ_prefix=None,
     )
@@ -412,16 +416,6 @@ class Base(Configuration):
                 environ_name="API_DOCUMENT_ACCESS_THROTTLE_RATE",
                 environ_prefix=None,
             ),
-            "template": values.Value(
-                default="30/minute",
-                environ_name="API_TEMPLATE_THROTTLE_RATE",
-                environ_prefix=None,
-            ),
-            "template_access": values.Value(
-                default="30/minute",
-                environ_name="API_TEMPLATE_ACCESS_THROTTLE_RATE",
-                environ_prefix=None,
-            ),
             "invitation": values.Value(
                 default="60/minute",
                 environ_name="API_INVITATION_THROTTLE_RATE",
@@ -459,7 +453,7 @@ class Base(Configuration):
         "REDOC_DIST": "SIDECAR",
     }
 
-    TRASHBIN_CUTOFF_DAYS = values.Value(
+    TRASHBIN_CUTOFF_DAYS = values.IntegerValue(
         30, environ_name="TRASHBIN_CUTOFF_DAYS", environ_prefix=None
     )
 
@@ -471,6 +465,7 @@ class Base(Configuration):
     EMAIL_HOST_PASSWORD = SecretFileValue(None)
     EMAIL_LOGO_IMG = values.Value(None)
     EMAIL_PORT = values.PositiveIntegerValue(None)
+    EMAIL_URL_APP = values.Value(None)
     EMAIL_USE_TLS = values.BooleanValue(False)
     EMAIL_USE_SSL = values.BooleanValue(False)
     EMAIL_FROM = values.Value("from@example.com")
@@ -515,7 +510,12 @@ class Base(Configuration):
     FRONTEND_CSS_URL = values.Value(
         None, environ_name="FRONTEND_CSS_URL", environ_prefix=None
     )
-
+    FRONTEND_JS_URL = values.Value(
+        None, environ_name="FRONTEND_JS_URL", environ_prefix=None
+    )
+    FRONTEND_SILENT_LOGIN_ENABLED = values.BooleanValue(
+        default=False, environ_name="FRONTEND_SILENT_LOGIN_ENABLED", environ_prefix=None
+    )
     THEME_CUSTOMIZATION_FILE_PATH = values.Value(
         os.path.join(BASE_DIR, "impress/configuration/theme/default.json"),
         environ_name="THEME_CUSTOMIZATION_FILE_PATH",
@@ -557,6 +557,16 @@ class Base(Configuration):
     SESSION_COOKIE_NAME = "docs_sessionid"
 
     # OIDC - Authorization Code Flow
+    OIDC_AUTHENTICATE_CLASS = values.Value(
+        "lasuite.oidc_login.views.OIDCAuthenticationRequestView",
+        environ_name="OIDC_AUTHENTICATE_CLASS",
+        environ_prefix=None,
+    )
+    OIDC_CALLBACK_CLASS = values.Value(
+        "lasuite.oidc_login.views.OIDCAuthenticationCallbackView",
+        environ_name="OIDC_CALLBACK_CLASS",
+        environ_prefix=None,
+    )
     OIDC_CREATE_USER = values.BooleanValue(
         default=True,
         environ_name="OIDC_CREATE_USER",
@@ -702,6 +712,16 @@ class Base(Configuration):
         "day": 200,
     }
 
+    LANGFUSE_SECRET_KEY = SecretFileValue(
+        None, environ_name="LANGFUSE_SECRET_KEY", environ_prefix=None
+    )
+    LANGFUSE_PUBLIC_KEY = values.Value(
+        None, environ_name="LANGFUSE_PUBLIC_KEY", environ_prefix=None
+    )
+    LANGFUSE_BASE_URL = values.Value(
+        None, environ_name="LANGFUSE_BASE_URL", environ_prefix=None
+    )
+
     # Y provider microservice
     Y_PROVIDER_API_KEY = SecretFileValue(
         environ_name="Y_PROVIDER_API_KEY",
@@ -709,6 +729,22 @@ class Base(Configuration):
     )
     Y_PROVIDER_API_BASE_URL = values.Value(
         environ_name="Y_PROVIDER_API_BASE_URL",
+        environ_prefix=None,
+    )
+
+    # DocSpec API microservice
+    DOCSPEC_API_URL = values.Value(environ_name="DOCSPEC_API_URL", environ_prefix=None)
+
+    # Imported file settings
+    CONVERSION_FILE_MAX_SIZE = values.IntegerValue(
+        20 * MB,  # 10MB
+        environ_name="CONVERSION_FILE_MAX_SIZE",
+        environ_prefix=None,
+    )
+
+    CONVERSION_FILE_EXTENSIONS_ALLOWED = values.ListValue(
+        default=[".docx", ".md"],
+        environ_name="CONVERSION_FILE_EXTENSIONS_ALLOWED",
         environ_prefix=None,
     )
 
@@ -1068,15 +1104,20 @@ class Production(Base):
     # Modern browsers require to have the `secure` attribute on cookies with `Samesite=none`
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
+    SESSION_CACHE_ALIAS = "session"
 
     # Privacy
     SECURE_REFERRER_POLICY = "same-origin"
 
+    # Conversion API: Always verify SSL in production
+    CONVERSION_API_SECURE = True
+
+    # Cache
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": values.Value(
-                "redis://redis:6379/1",
+                "redis://redis:6379/0",
                 environ_name="REDIS_URL",
                 environ_prefix=None,
             ),
@@ -1090,9 +1131,25 @@ class Production(Base):
             },
             "KEY_PREFIX": values.Value(
                 "docs",
-                environ_name="CACHES_KEY_PREFIX",
+                environ_name="CACHES_DEFAULT_KEY_PREFIX",
                 environ_prefix=None,
             ),
+        },
+        "session": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": values.Value(
+                "redis://redis:6379/0",
+                environ_name="REDIS_URL",
+                environ_prefix=None,
+            ),
+            "TIMEOUT": values.IntegerValue(
+                30,  # timeout in seconds
+                environ_name="CACHES_SESSION_TIMEOUT",
+                environ_prefix=None,
+            ),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
         },
     }
 

@@ -16,13 +16,13 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
+import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 
 import { Box, TextErrors } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
 import { Doc, useProviderStore } from '@/docs/doc-management';
 import { avatarUrlFromName, useAuth } from '@/features/auth';
-import { useResponsiveStore } from '@/stores';
 
 import {
   useHeadings,
@@ -85,16 +85,18 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
   const { setEditor } = useEditorStore();
   const { t } = useTranslation();
   const { themeTokens } = useCunninghamTheme();
-  const { isDesktop } = useResponsiveStore();
   const { isSynced: isConnectedToCollabServer } = useProviderStore();
   const refEditorContainer = useRef<HTMLDivElement>(null);
   const canSeeComment = doc.abilities.comment;
   // Determine if comments should be visible in the UI
-  const showComments = canSeeComment && isDesktop;
+  const showComments = canSeeComment;
 
   useSaveDoc(doc.id, provider.document, isConnectedToCollabServer);
   const { i18n } = useTranslation();
-  const lang = i18n.resolvedLanguage;
+  let lang = i18n.resolvedLanguage;
+  if (!lang || !(lang in locales)) {
+    lang = 'en';
+  }
 
   const { uploadFile, errorAttachment } = useUploadFile(doc.id);
 
@@ -117,7 +119,7 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
   const editor: DocsBlockNoteEditor = useCreateBlockNote(
     {
       collaboration: {
-        provider: provider,
+        provider: provider as { awareness?: Awareness | undefined },
         fragment: provider.document.getXmlFragment('document-store'),
         user: {
           name: cursorName,
@@ -163,8 +165,10 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
       },
       dictionary: {
         ...locales[lang as keyof typeof locales],
-        multi_column:
-          multiColumnLocales?.[lang as keyof typeof multiColumnLocales],
+        ...(multiColumnLocales && {
+          multi_column:
+            multiColumnLocales[lang as keyof typeof multiColumnLocales],
+        }),
       },
       pasteHandler: ({ event, defaultPasteHandler }) => {
         // Get clipboard data
@@ -258,7 +262,6 @@ export const BlockNoteReader = ({
   const { user } = useAuth();
   const { setEditor } = useEditorStore();
   const { threadStore } = useComments(docId, false, user);
-  const { t } = useTranslation();
   const editor = useCreateBlockNote(
     {
       collaboration: {
@@ -304,7 +307,6 @@ export const BlockNoteReader = ({
         editor={editor}
         editable={false}
         theme="light"
-        aria-label={t('Document viewer')}
         formattingToolbar={false}
         slashMenu={false}
         comments={false}

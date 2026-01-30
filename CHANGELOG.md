@@ -6,7 +6,88 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [4.2.0] - 2025-12-17
+## [v4.5.0] - 2026-01-28
+
+### Added 
+
+- ✨(frontend) integrate configurable Waffle #1795
+- ✨ Import of documents #1609
+- 🚨(CI) gives warning if theme not updated #1811
+- ✨(frontend) Add stat for Crisp #1824
+- ✨(auth) add silent login #1690
+- 🔧(project) add DJANGO_EMAIL_URL_APP environment variable #1825
+
+### Changed
+
+- ♿(frontend) improve accessibility:
+  - ♿️(frontend) fix subdoc opening and emoji pick focus #1745
+- ✨(backend) add field for button label in email template #1817
+
+### Fixed
+
+- ✅(e2e) fix e2e test for other browsers #1799
+- 🐛(export) fix export column NaN #1819
+- 🐛(frontend) add fallback for unsupported Blocknote languages #1810
+- 🐛(frontend) fix emojipicker closing in tree #1808
+- 🐛(frontend) display children in favorite #1782
+- 🐛(frontend) preserve typed text after @ on escape #1833
+
+### Removed
+
+- 🔥(project) remove all code related to template #1780
+
+### Security
+
+- 🔒️(trivy) fix vulnerability about jaraco.context #1806
+
+## [v4.4.0] - 2026-01-13
+
+### Added
+
+- ✨(backend) add documents/all endpoint with descendants #1553
+- ✅(export) add PDF regression tests #1762
+- 📝(docs) Add language configuration documentation #1757
+- 🔒(helm) Set default security context #1750
+- ✨(backend) use langfuse to monitor AI actions #1776
+
+### Changed
+
+- ♿(frontend) improve accessibility:
+  - ♿(frontend) make html export accessible to screen reader users #1743
+  - ♿(frontend) add missing label and fix Axes errors to improve a11y #1693
+
+### Fixed
+
+- ✅(backend) reduce flakiness on backend test #1769
+- 🐛(frontend) fix clickable main content regression #1773
+- 🐛(backend) fix TRASHBIN_CUTOFF_DAYS type error #1778
+- 💄(frontend) fix icon position in callout block #1779
+
+### Security
+
+- 🔒️(backend) validate more strictly url used by cors-proxy endpoint #1768
+- 🔒️(frontend) fix props vulnerability in Interlinking #1792
+
+## [v4.3.0] - 2026-01-05
+
+### Added
+
+- ✨(helm) redirecting system #1697
+- 📱(frontend) add comments for smaller device #1737
+- ✨(project) add custom js support via config #1759
+
+### Changed
+
+- 🥅(frontend) intercept 401 error on GET threads #1754
+- 🦺(frontend) check content type pdf on PdfBlock #1756
+- ✈️(frontend) pause Posthog when offline #1755
+
+### Fixed
+
+- 🐛(frontend) fix tables deletion #1739
+- 🐛(frontend) fix children not display when first resize #1753
+
+## [v4.2.0] - 2025-12-17
 
 ### Added
 
@@ -30,8 +111,7 @@ and this project adheres to
 - 🐛(frontend) Select text + Go back one page crash the app #1733
 - 🐛(frontend) fix versioning conflict #1742
 
-
-## [4.1.0] - 2025-12-09
+## [v4.1.0] - 2025-12-09
 
 ### Added
 
@@ -50,7 +130,7 @@ and this project adheres to
 - 🐛(nginx) fix / location to handle new static pages #1682
 - 🐛(frontend) rerendering during resize window #1715
 
-## [4.0.0] - 2025-12-01
+## [v4.0.0] - 2025-12-01
 
 ### Added
 
@@ -73,7 +153,7 @@ and this project adheres to
 - 🐛(frontend) preserve left panel width on window resize #1588
 - 🐛(frontend) prevent duplicate as first character in title #1595
 
-## [3.10.0] - 2025-11-18
+## [v3.10.0] - 2025-11-18
 
 ### Added
 
@@ -107,7 +187,7 @@ and this project adheres to
 
 - 🔥(backend) remove api managing templates
 
-## [3.9.0] - 2025-11-10
+## [v3.9.0] - 2025-11-10
 
 ### Added
 
@@ -133,13 +213,13 @@ and this project adheres to
 - 🐛(frontend) button new doc UI fix #1557
 - 🐛(frontend) interlinking UI fix #1557
 
-## [3.8.2] - 2025-10-17
+## [v3.8.2] - 2025-10-17
 
 ### Fixed
 
 - 🐛(service-worker) fix sw registration and page reload logic #1500
 
-## [3.8.1] - 2025-10-17
+## [v3.8.1] - 2025-10-17
 
 ### Fixed
 
@@ -153,7 +233,7 @@ and this project adheres to
 
 - 🔥(backend) remove treebeard form for the document admin #1470
 
-## [3.8.0] - 2025-10-14
+## [v3.8.0] - 2025-10-14
 
 ### Added
 
@@ -206,7 +286,7 @@ and this project adheres to
 
 - 🔥(frontend) remove custom DividerBlock ##1375
 
-## [3.7.0] - 2025-09-12
+## [v3.7.0] - 2025-09-12
 
 ### Added
 
@@ -238,7 +318,7 @@ and this project adheres to
 
 - 🐛(frontend) fix callout emoji list #1366
 
-## [3.6.0] - 2025-09-04
+## [v3.6.0] - 2025-09-04
 
 ### Added
 
@@ -274,7 +354,7 @@ and this project adheres to
 - 🐛(frontend) fix display bug on homepage #1332
 - 🐛link role update #1287
 
-## [3.5.0] - 2025-07-31
+## [v3.5.0] - 2025-07-31
 
 ### Added
 
@@ -302,7 +382,7 @@ and this project adheres to
 - 🐛(frontend) 401 redirection overridden #1214
 - 🐛(frontend) include root parent in search #1243
 
-## [3.4.2] - 2025-07-18
+## [v3.4.2] - 2025-07-18
 
 ### Changed
 
@@ -312,7 +392,7 @@ and this project adheres to
 
 - 🐛(backend) improve prompt to not use code blocks delimiter #1188
 
-## [3.4.1] - 2025-07-15
+## [v3.4.1] - 2025-07-15
 
 ### Fixed
 
@@ -323,7 +403,7 @@ and this project adheres to
 - 🐛(frontend) fix crash share modal on grid options #1174
 - 🐛(frontend) fix unfold subdocs not clickable at the bottom #1179
 
-## [3.4.0] - 2025-07-09
+## [v3.4.0] - 2025-07-09
 
 ### Added
 
@@ -367,7 +447,7 @@ and this project adheres to
 
 - 🔥(frontend) remove Beta from logo #1095
 
-## [3.3.0] - 2025-05-06
+## [v3.3.0] - 2025-05-06
 
 ### Added
 
@@ -399,14 +479,14 @@ and this project adheres to
 
 - 🔥(back) remove footer endpoint #948
 
-## [3.2.1] - 2025-05-06
+## [v3.2.1] - 2025-05-06
 
 ## Fixed
 
 - 🐛(frontend) fix list copy paste #943
 - 📝(doc) update contributing policy (commit signatures are now mandatory) #895
 
-## [3.2.0] - 2025-05-05
+## [v3.2.0] - 2025-05-05
 
 ## Added
 
@@ -433,7 +513,7 @@ and this project adheres to
 - 🐛(backend) race condition create doc #633
 - 🐛(frontend) fix breaklines in custom blocks #908
 
-## [3.1.0] - 2025-04-07
+## [v3.1.0] - 2025-04-07
 
 ## Added
 
@@ -451,7 +531,7 @@ and this project adheres to
 - 🐛(back) validate document content in serializer #822
 - 🐛(frontend) fix selection click past end of content #840
 
-## [3.0.0] - 2025-03-28
+## [v3.0.0] - 2025-03-28
 
 ## Added
 
@@ -467,7 +547,7 @@ and this project adheres to
 - 🐛(backend) compute ancestor_links in get_abilities if needed #725
 - 🔒️(back) restrict access to document accesses #801
 
-## [2.6.0] - 2025-03-21
+## [v2.6.0] - 2025-03-21
 
 ## Added
 
@@ -485,7 +565,7 @@ and this project adheres to
 - 🔒️(back) throttle user list endpoint #636
 - 🔒️(back) remove pagination and limit to 5 for user list endpoint #636
 
-## [2.5.0] - 2025-03-18
+## [v2.5.0] - 2025-03-18
 
 ## Added
 
@@ -515,7 +595,7 @@ and this project adheres to
 - 🚨(helm) fix helmfile lint #736
 - 🚚(frontend) redirect to 401 page when 401 error #759
 
-## [2.4.0] - 2025-03-06
+## [v2.4.0] - 2025-03-06
 
 ## Added
 
@@ -529,7 +609,7 @@ and this project adheres to
 
 - 🐛(frontend) fix collaboration error #684
 
-## [2.3.0] - 2025-03-03
+## [v2.3.0] - 2025-03-03
 
 ## Added
 
@@ -556,7 +636,7 @@ and this project adheres to
 - ♻️(frontend) improve table pdf rendering
 - 🐛(email) invitation emails in receivers language
 
-## [2.2.0] - 2025-02-10
+## [v2.2.0] - 2025-02-10
 
 ## Added
 
@@ -575,7 +655,7 @@ and this project adheres to
 - 🐛(frontend) fix cursor breakline #609
 - 🐛(frontend) fix style pdf export #609
 
-## [2.1.0] - 2025-01-29
+## [v2.1.0] - 2025-01-29
 
 ## Added
 
@@ -604,14 +684,14 @@ and this project adheres to
 
 - 🔥(backend) remove "content" field from list serializer # 516
 
-## [2.0.1] - 2025-01-17
+## [v2.0.1] - 2025-01-17
 
 ## Fixed
 
 -🐛(frontend) share modal is shown when you don't have the abilities #557
 -🐛(frontend) title copy break app #564
 
-## [2.0.0] - 2025-01-13
+## [v2.0.0] - 2025-01-13
 
 ## Added
 
@@ -642,7 +722,7 @@ and this project adheres to
 - 🐛(frontend) hide search and create doc button if not authenticated #555
 - 🐛(backend) race condition creation issue #556
 
-## [1.10.0] - 2024-12-17
+## [v1.10.0] - 2024-12-17
 
 ## Added
 
@@ -663,7 +743,7 @@ and this project adheres to
 - 🐛(frontend) update doc editor height #481
 - 💄(frontend) add doc search #485
 
-## [1.9.0] - 2024-12-11
+## [v1.9.0] - 2024-12-11
 
 ## Added
 
@@ -684,19 +764,19 @@ and this project adheres to
 - 🐛(frontend) Fix hidden menu on Firefox #468
 - 🐛(backend) fix sanitize problem IA #490
 
-## [1.8.2] - 2024-11-28
+## [v1.8.2] - 2024-11-28
 
 ## Changed
 
 - ♻️(SW) change strategy html caching #460
 
-## [1.8.1] - 2024-11-27
+## [v1.8.1] - 2024-11-27
 
 ## Fixed
 
 - 🐛(frontend) link not clickable and flickering firefox #457
 
-## [1.8.0] - 2024-11-25
+## [v1.8.0] - 2024-11-25
 
 ## Added
 
@@ -724,7 +804,7 @@ and this project adheres to
 - 🐛(frontend) users have view access when revoked #387
 - 🐛(frontend) fix placeholder editable when double clicks #454
 
-## [1.7.0] - 2024-10-24
+## [v1.7.0] - 2024-10-24
 
 ## Added
 
@@ -751,7 +831,7 @@ and this project adheres to
 
 - 🔥(helm) remove infra related codes #366
 
-## [1.6.0] - 2024-10-17
+## [v1.6.0] - 2024-10-17
 
 ## Added
 
@@ -773,13 +853,13 @@ and this project adheres to
 - 🐛(backend) fix nginx docker container #340
 - 🐛(frontend) fix copy paste firefox #353
 
-## [1.5.1] - 2024-10-10
+## [v1.5.1] - 2024-10-10
 
 ## Fixed
 
 - 🐛(db) fix users duplicate #316
 
-## [1.5.0] - 2024-10-09
+## [v1.5.0] - 2024-10-09
 
 ## Added
 
@@ -807,7 +887,7 @@ and this project adheres to
 - 🔧(backend) fix configuration to avoid different ssl warning #297
 - 🐛(frontend) fix editor break line not working #302
 
-## [1.4.0] - 2024-09-17
+## [v1.4.0] - 2024-09-17
 
 ## Added
 
@@ -827,7 +907,7 @@ and this project adheres to
 - 🐛(backend) Fix forcing ID when creating a document via API endpoint #234
 - 🐛 Rebuild frontend dev container from makefile #248
 
-## [1.3.0] - 2024-09-05
+## [v1.3.0] - 2024-09-05
 
 ## Added
 
@@ -851,14 +931,14 @@ and this project adheres to
 
 - 🔥(frontend) remove saving modal #213
 
-## [1.2.1] - 2024-08-23
+## [v1.2.1] - 2024-08-23
 
 ## Changed
 
 - ♻️ Change ordering docs datagrid #195
 - 🔥(helm) use scaleway email #194
 
-## [1.2.0] - 2024-08-22
+## [v1.2.0] - 2024-08-22
 
 ## Added
 
@@ -884,7 +964,7 @@ and this project adheres to
 
 - 🔥(helm) remove htaccess #181
 
-## [1.1.0] - 2024-07-15
+## [v1.1.0] - 2024-07-15
 
 ## Added
 
@@ -899,7 +979,7 @@ and this project adheres to
 - ♻️(frontend) create a doc from a modal #132
 - ♻️(frontend) manage members from the share modal #140
 
-## [1.0.0] - 2024-07-02
+## [v1.0.0] - 2024-07-02
 
 ## Added
 
@@ -937,14 +1017,17 @@ and this project adheres to
 - 💚(CI) Remove trigger workflow on push tags on CI (#68)
 - 🔥(frontend) Remove coming soon page (#121)
 
-## [0.1.0] - 2024-05-24
+## [v0.1.0] - 2024-05-24
 
 ## Added
 
 - ✨(frontend) Coming Soon page (#67)
 - 🚀 Impress, project to manage your documents easily and collaboratively.
 
-[unreleased]: https://github.com/suitenumerique/docs/compare/v4.2.0...main
+[unreleased]: https://github.com/suitenumerique/docs/compare/v4.5.0...main
+[v4.5.0]: https://github.com/suitenumerique/docs/releases/v4.5.0
+[v4.4.0]: https://github.com/suitenumerique/docs/releases/v4.4.0
+[v4.3.0]: https://github.com/suitenumerique/docs/releases/v4.3.0
 [v4.2.0]: https://github.com/suitenumerique/docs/releases/v4.2.0
 [v4.1.0]: https://github.com/suitenumerique/docs/releases/v4.1.0
 [v4.0.0]: https://github.com/suitenumerique/docs/releases/v4.0.0
@@ -979,12 +1062,12 @@ and this project adheres to
 [v1.8.0]: https://github.com/suitenumerique/docs/releases/v1.8.0
 [v1.7.0]: https://github.com/suitenumerique/docs/releases/v1.7.0
 [v1.6.0]: https://github.com/suitenumerique/docs/releases/v1.6.0
-[1.5.1]: https://github.com/suitenumerique/docs/releases/v1.5.1
-[1.5.0]: https://github.com/suitenumerique/docs/releases/v1.5.0
-[1.4.0]: https://github.com/suitenumerique/docs/releases/v1.4.0
-[1.3.0]: https://github.com/suitenumerique/docs/releases/v1.3.0
-[1.2.1]: https://github.com/suitenumerique/docs/releases/v1.2.1
-[1.2.0]: https://github.com/suitenumerique/docs/releases/v1.2.0
-[1.1.0]: https://github.com/suitenumerique/docs/releases/v1.1.0
-[1.0.0]: https://github.com/suitenumerique/docs/releases/v1.0.0
-[0.1.0]: https://github.com/suitenumerique/docs/releases/v0.1.0
+[v1.5.1]: https://github.com/suitenumerique/docs/releases/v1.5.1
+[v1.5.0]: https://github.com/suitenumerique/docs/releases/v1.5.0
+[v1.4.0]: https://github.com/suitenumerique/docs/releases/v1.4.0
+[v1.3.0]: https://github.com/suitenumerique/docs/releases/v1.3.0
+[v1.2.1]: https://github.com/suitenumerique/docs/releases/v1.2.1
+[v1.2.0]: https://github.com/suitenumerique/docs/releases/v1.2.0
+[v1.1.0]: https://github.com/suitenumerique/docs/releases/v1.1.0
+[v1.0.0]: https://github.com/suitenumerique/docs/releases/v1.0.0
+[v0.1.0]: https://github.com/suitenumerique/docs/releases/v0.1.0

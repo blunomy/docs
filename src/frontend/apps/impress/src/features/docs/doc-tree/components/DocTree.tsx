@@ -63,13 +63,11 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
     });
     treeContext?.treeData.handleMove(result);
   };
+
   /**
    * This function resets the tree states.
    */
   const resetStateTree = useCallback(() => {
-    if (!treeContext?.root?.id) {
-      return;
-    }
     treeContext?.setRoot(null);
     setInitialOpenState(undefined);
   }, [treeContext]);
@@ -128,6 +126,27 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
         rootItemRef.current?.focus();
       });
     }
+  }, []);
+
+  const handleRowKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') {
+      return;
+    }
+
+    const target = e.target as HTMLElement | null;
+    if (
+      !target ||
+      !(
+        target.classList.contains('c__tree-view--row') ||
+        target.classList.contains('c__tree-view--node')
+      )
+    ) {
+      return;
+    }
+
+    e.currentTarget
+      .querySelector<HTMLDivElement>('.c__tree-view--node')
+      ?.click();
   }, []);
 
   /**
@@ -359,6 +378,9 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
               }}
               rootNodeId={treeContext.root.id}
               renderNode={DocSubPageItem}
+              rowProps={{
+                onKeyDown: handleRowKeyDown,
+              }}
             />
           </Overlayer>
         )}
