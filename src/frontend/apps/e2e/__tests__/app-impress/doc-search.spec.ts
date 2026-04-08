@@ -29,7 +29,7 @@ test.describe('Document search', () => {
     await page.getByTestId('search-docs-button').click();
 
     await expect(
-      page.getByRole('img', { name: 'No active search' }),
+      page.getByLabel('Search modal').locator('img[alt=""]'),
     ).toBeVisible();
 
     await expect(
@@ -45,7 +45,7 @@ test.describe('Document search', () => {
     const listSearch = page.getByRole('listbox').getByRole('group');
     const rowdoc = listSearch.getByRole('option').first();
     await expect(rowdoc.getByText('keyboard_return')).toBeVisible();
-    await expect(rowdoc.getByText(/seconds? ago/)).toBeVisible();
+    await expect(rowdoc.getByText(/just now/)).toBeVisible();
 
     await expect(
       listSearch.getByRole('option').getByText(doc1Title),
@@ -107,7 +107,7 @@ test.describe('Document search', () => {
 
     await searchButton.click();
     await expect(
-      page.getByRole('combobox', { name: 'Quick search input' }),
+      page.getByRole('combobox', { name: 'Search documents' }),
     ).toBeVisible();
     await expect(filters).toBeHidden();
 
@@ -120,7 +120,7 @@ test.describe('Document search', () => {
 
     await searchButton.click();
     await expect(
-      page.getByRole('combobox', { name: 'Quick search input' }),
+      page.getByRole('combobox', { name: 'Search documents' }),
     ).toBeVisible();
     await expect(filters).toBeHidden();
 
@@ -137,12 +137,12 @@ test.describe('Document search', () => {
     await filters.click();
     await filters.getByRole('button', { name: 'Current doc' }).click();
     await expect(
-      page.getByRole('menuitem', { name: 'All docs' }),
+      page.getByRole('menuitemcheckbox', { name: 'All docs' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('menuitem', { name: 'Current doc' }),
+      page.getByRole('menuitemcheckbox', { name: 'Current doc' }),
     ).toBeVisible();
-    await page.getByRole('menuitem', { name: 'All docs' }).click();
+    await page.getByRole('menuitemcheckbox', { name: 'All docs' }).click();
 
     await expect(page.getByRole('button', { name: 'Reset' })).toBeVisible();
   });
@@ -168,9 +168,9 @@ test.describe('Document search', () => {
     const searchButton = page.getByTestId('search-docs-button');
 
     await searchButton.click();
-    await page.getByRole('combobox', { name: 'Quick search input' }).click();
+    await page.getByRole('combobox', { name: 'Search documents' }).click();
     await page
-      .getByRole('combobox', { name: 'Quick search input' })
+      .getByRole('combobox', { name: 'Search documents' })
       .fill('sub page search');
 
     // Expect to find the first and second docs in the results list
@@ -192,7 +192,7 @@ test.describe('Document search', () => {
     );
     await searchButton.click();
     await page
-      .getByRole('combobox', { name: 'Quick search input' })
+      .getByRole('combobox', { name: 'Search documents' })
       .fill('second');
 
     // Now there is a sub page - expect to have the focus on the current doc

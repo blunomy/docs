@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Icon } from '@/components';
-import { useCreateDoc } from '@/features/docs/doc-management';
+import { useCreateDoc } from '@/docs/doc-management';
 import { useSkeletonStore } from '@/features/skeletons';
 
 import { useLeftPanelStore } from '../stores';
@@ -25,7 +25,7 @@ export const LeftPanelHeaderButton = () => {
         .then(() => {
           // The skeleton will be disabled by the [id] page once the data is loaded
           setIsNavigating(false);
-          closePanel();
+          closePanel({ type: 'mobile' });
         })
         .catch(() => {
           // In case of navigation error, disable the skeleton

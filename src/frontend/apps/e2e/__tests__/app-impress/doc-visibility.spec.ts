@@ -1,14 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  BROWSERS,
-  createDoc,
-  expectLoginPage,
-  keyCloakSignIn,
-  verifyDocName,
-} from './utils-common';
+import { BROWSERS, createDoc, verifyDocName } from './utils-common';
 import { getEditor, writeInEditor } from './utils-editor';
 import { addNewMember, connectOtherUserToDoc } from './utils-share';
+import { SignIn, expectLoginPage } from './utils-signin';
 import { createRootSubPage } from './utils-sub-pages';
 
 test.describe('Doc Visibility', () => {
@@ -47,20 +42,20 @@ test.describe('Doc Visibility', () => {
     await expect(selectVisibility.getByText('Private')).toBeVisible();
 
     await expect(
-      page.getByRole('menuitem', { name: 'Read only' }),
+      page.getByRole('menuitemradio', { name: 'Read only' }),
     ).toBeHidden();
     await expect(
-      page.getByRole('menuitem', { name: 'Can read and edit' }),
+      page.getByRole('menuitemradio', { name: 'Can read and edit' }),
     ).toBeHidden();
 
     await selectVisibility.click();
-    await page.getByRole('menuitem', { name: 'Connected' }).click();
+    await page.getByRole('menuitemradio', { name: 'Connected' }).click();
 
     await expect(page.getByTestId('doc-access-mode')).toBeVisible();
 
     await selectVisibility.click();
 
-    await page.getByRole('menuitem', { name: 'Public' }).click();
+    await page.getByRole('menuitemradio', { name: 'Public' }).click();
 
     await expect(page.getByTestId('doc-access-mode')).toBeVisible();
   });
@@ -74,7 +69,7 @@ test.describe('Doc Visibility: Restricted', () => {
     browserName,
   }) => {
     await page.goto('/');
-    await keyCloakSignIn(page, browserName);
+    await SignIn(page, browserName);
 
     const [docTitle] = await createDoc(
       page,
@@ -109,7 +104,7 @@ test.describe('Doc Visibility: Restricted', () => {
     test.slow();
 
     await page.goto('/');
-    await keyCloakSignIn(page, browserName);
+    await SignIn(page, browserName);
 
     const [docTitle] = await createDoc(page, 'Restricted auth', browserName, 1);
 
@@ -128,7 +123,7 @@ test.describe('Doc Visibility: Restricted', () => {
       throw new Error('No alternative browser found');
     }
 
-    await keyCloakSignIn(page, otherBrowser);
+    await SignIn(page, otherBrowser);
 
     await expect(page.getByTestId('header-logo-link')).toBeVisible({
       timeout: 10000,
@@ -146,7 +141,7 @@ test.describe('Doc Visibility: Restricted', () => {
   test('A doc is accessible when member.', async ({ page, browserName }) => {
     test.slow();
     await page.goto('/');
-    await keyCloakSignIn(page, browserName);
+    await SignIn(page, browserName);
 
     const [docTitle] = await createDoc(page, 'Restricted auth', browserName, 1);
 
@@ -205,11 +200,7 @@ test.describe('Doc Visibility: Public', () => {
     const selectVisibility = page.getByTestId('doc-visibility');
     await selectVisibility.click();
 
-    await page
-      .getByRole('menuitem', {
-        name: 'Public',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Public' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.'),
@@ -217,11 +208,7 @@ test.describe('Doc Visibility: Public', () => {
 
     await expect(page.getByTestId('doc-access-mode')).toBeVisible();
     await page.getByTestId('doc-access-mode').click();
-    await page
-      .getByRole('menuitem', {
-        name: 'Reading',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Reading' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.').first(),
@@ -307,18 +294,14 @@ test.describe('Doc Visibility: Public', () => {
     const selectVisibility = page.getByTestId('doc-visibility');
     await selectVisibility.click();
 
-    await page
-      .getByRole('menuitem', {
-        name: 'Public',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Public' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.'),
     ).toBeVisible();
 
     await page.getByTestId('doc-access-mode').click();
-    await page.getByRole('menuitem', { name: 'Editing' }).click();
+    await page.getByRole('menuitemradio', { name: 'Editing' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.').first(),
@@ -381,15 +364,14 @@ test.describe('Doc Visibility: Public', () => {
 });
 
 test.describe('Doc Visibility: Authenticated', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+  });
 
   test('A doc is not accessible when unauthenticated.', async ({
     page,
     browserName,
   }) => {
-    await page.goto('/');
-    await keyCloakSignIn(page, browserName);
-
     const [docTitle] = await createDoc(
       page,
       'Authenticated unauthentified',
@@ -402,11 +384,7 @@ test.describe('Doc Visibility: Authenticated', () => {
     await page.getByRole('button', { name: 'Share' }).click();
     const selectVisibility = page.getByTestId('doc-visibility');
     await selectVisibility.click();
-    await page
-      .getByRole('menuitem', {
-        name: 'Connected',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Connected' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.'),
@@ -414,23 +392,21 @@ test.describe('Doc Visibility: Authenticated', () => {
 
     await page.getByRole('button', { name: 'close' }).click();
 
-    const urlDoc = page.url();
+    const docUrl = page.url();
 
-    await page
-      .getByRole('button', {
-        name: 'Logout',
-      })
-      .click();
+    const { otherPage, cleanup } = await connectOtherUserToDoc({
+      browserName,
+      docUrl,
+      withoutSignIn: true,
+    });
 
-    await expectLoginPage(page);
-
-    await page.goto(urlDoc);
-
-    await expect(page.locator('h2').getByText(docTitle)).toBeHidden();
+    await expect(otherPage.locator('h2').getByText(docTitle)).toBeHidden();
 
     await expect(
-      page.getByText('Log in to access the document.'),
+      otherPage.getByText('Log in to access the document.'),
     ).toBeVisible();
+
+    await cleanup();
   });
 
   test('It checks a authenticated doc in read only mode', async ({
@@ -438,9 +414,6 @@ test.describe('Doc Visibility: Authenticated', () => {
     browserName,
   }) => {
     test.slow();
-
-    await page.goto('/');
-    await keyCloakSignIn(page, browserName);
 
     const [docTitle] = await createDoc(
       page,
@@ -454,11 +427,7 @@ test.describe('Doc Visibility: Authenticated', () => {
     await page.getByRole('button', { name: 'Share' }).click();
     const selectVisibility = page.getByTestId('doc-visibility');
     await selectVisibility.click();
-    await page
-      .getByRole('menuitem', {
-        name: 'Connected',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Connected' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.'),
@@ -474,7 +443,7 @@ test.describe('Doc Visibility: Authenticated', () => {
 
     await page.getByRole('button', { name: 'close' }).click();
 
-    const urlDoc = page.url();
+    const docUrl = page.url();
 
     const { name: childTitle } = await createRootSubPage(
       page,
@@ -484,56 +453,43 @@ test.describe('Doc Visibility: Authenticated', () => {
 
     const urlChildDoc = page.url();
 
-    await page
-      .getByRole('button', {
-        name: 'Logout',
-      })
-      .click();
-
-    const otherBrowser = BROWSERS.find((b) => b !== browserName);
-    if (!otherBrowser) {
-      throw new Error('No alternative browser found');
-    }
-    await keyCloakSignIn(page, otherBrowser);
-
-    await expect(page.getByTestId('header-logo-link')).toBeVisible({
-      timeout: 10000,
+    const { otherPage, cleanup } = await connectOtherUserToDoc({
+      browserName,
+      docUrl,
+      docTitle,
     });
 
-    await page.goto(urlDoc);
-
-    await expect(page.locator('h2').getByText(docTitle)).toBeVisible();
-    await page.getByRole('button', { name: 'Share' }).click();
-    await page.getByRole('button', { name: 'Copy link' }).click();
-    await expect(page.getByText('Link Copied !')).toBeVisible();
+    await otherPage.getByRole('button', { name: 'Share' }).click();
 
     await expect(
-      page.getByText(
+      otherPage.getByText(
         'You can view this document but need additional access to see its members or modify settings.',
       ),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Request access' }).click();
+    await otherPage.getByRole('button', { name: 'Request access' }).click();
 
     await expect(
-      page.getByRole('button', { name: 'Request access' }),
+      otherPage.getByRole('button', { name: 'Request access' }),
     ).toBeDisabled();
 
-    await page.goto(urlChildDoc);
+    await otherPage.goto(urlChildDoc);
 
-    await expect(page.locator('h2').getByText(childTitle)).toBeVisible();
+    await expect(otherPage.locator('h2').getByText(childTitle)).toBeVisible();
 
-    await page.getByRole('button', { name: 'Share' }).click();
+    await otherPage.getByRole('button', { name: 'Share' }).click();
 
     await expect(
-      page.getByText(
+      otherPage.getByText(
         'As this is a sub-document, please request access to the parent document to enable these features.',
       ),
     ).toBeVisible();
 
     await expect(
-      page.getByRole('button', { name: 'Request access' }),
+      otherPage.getByRole('button', { name: 'Request access' }),
     ).toBeHidden();
+
+    await cleanup();
   });
 
   test('It checks a authenticated doc in editable mode', async ({
@@ -541,8 +497,6 @@ test.describe('Doc Visibility: Authenticated', () => {
     browserName,
   }) => {
     test.slow();
-    await page.goto('/');
-    await keyCloakSignIn(page, browserName);
 
     const [docTitle] = await createDoc(
       page,
@@ -556,19 +510,15 @@ test.describe('Doc Visibility: Authenticated', () => {
     await page.getByRole('button', { name: 'Share' }).click();
     const selectVisibility = page.getByTestId('doc-visibility');
     await selectVisibility.click();
-    await page
-      .getByRole('menuitem', {
-        name: 'Connected',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Connected' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.'),
     ).toBeVisible();
 
-    const urlDoc = page.url();
+    const docUrl = page.url();
     await page.getByTestId('doc-access-mode').click();
-    await page.getByRole('menuitem', { name: 'Editing' }).click();
+    await page.getByRole('menuitemradio', { name: 'Editing' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.').first(),
@@ -576,29 +526,24 @@ test.describe('Doc Visibility: Authenticated', () => {
 
     await page.getByRole('button', { name: 'close' }).click();
 
-    await page
-      .getByRole('button', {
-        name: 'Logout',
-      })
-      .click();
-
-    const otherBrowser = BROWSERS.find((b) => b !== browserName);
-    if (!otherBrowser) {
-      throw new Error('No alternative browser found');
-    }
-    await keyCloakSignIn(page, otherBrowser);
-
-    await expect(page.getByTestId('header-logo-link')).toBeVisible({
-      timeout: 10000,
+    const { otherPage, cleanup } = await connectOtherUserToDoc({
+      browserName,
+      docUrl,
+      docTitle,
     });
 
-    await page.goto(urlDoc);
+    await otherPage.getByRole('button', { name: 'Share' }).click();
 
-    await verifyDocName(page, docTitle);
-    await page.getByRole('button', { name: 'Share' }).click();
-    await page.getByRole('button', { name: 'Copy link' }).click();
-    await expect(page.getByText('Link Copied !')).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(
+      otherPage.getByText(
+        'You can view this document but need additional access to see its members or modify settings.',
+      ),
+    ).toBeVisible();
+
+    await expect(
+      otherPage.getByRole('button', { name: 'Request access' }),
+    ).toBeVisible();
+
+    await cleanup();
   });
 });

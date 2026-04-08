@@ -2,13 +2,13 @@ import { expect, test } from '@playwright/test';
 
 import {
   createDoc,
-  expectLoginPage,
-  keyCloakSignIn,
+  getOtherBrowserName,
   updateDocTitle,
   verifyDocName,
 } from './utils-common';
-import { addNewMember } from './utils-share';
+import { addNewMember, connectOtherUserToDoc } from './utils-share';
 import {
+  addChild,
   clickOnAddRootSubPage,
   createRootSubPage,
   getTreeRow,
@@ -17,6 +17,137 @@ import {
 test.describe('Doc Tree', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+  });
+
+  test('check the tree pagination', async ({ page, browserName }) => {
+    await page.route(/.*\/documents\/.*\/children\//, async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const pageId = url.searchParams.get('page') ?? '1';
+
+      const response = {
+        count: 40,
+        next: `${process.env.BASE_API_URL}/documents/anything/children/?page=${parseInt(pageId) + 1}`,
+        previous:
+          parseInt(pageId) > 1
+            ? `${process.env.BASE_API_URL}/documents/anything/children/?page=${parseInt(pageId) - 1}`
+            : null,
+        results: Array.from({ length: 20 }, (_, i) => ({
+          id: `doc-child-${pageId}-${i}`,
+          abilities: {
+            accesses_manage: true,
+            accesses_view: true,
+            ai_proxy: true,
+            ai_transform: true,
+            ai_translate: true,
+            attachment_upload: true,
+            media_check: true,
+            can_edit: true,
+            children_list: true,
+            children_create: true,
+            collaboration_auth: true,
+            comment: true,
+            content: true,
+            cors_proxy: true,
+            descendants: true,
+            destroy: true,
+            duplicate: true,
+            favorite: true,
+            link_configuration: true,
+            invite_owner: true,
+            mask: true,
+            move: true,
+            partial_update: true,
+            restore: true,
+            retrieve: true,
+            media_auth: true,
+            link_select_options: {
+              restricted: null,
+              authenticated: ['reader', 'commenter', 'editor'],
+              public: ['reader', 'commenter', 'editor'],
+            },
+            tree: true,
+            update: true,
+            versions_destroy: true,
+            versions_list: true,
+            versions_retrieve: true,
+            search: true,
+          },
+          ancestors_link_reach: 'restricted',
+          ancestors_link_role: null,
+          computed_link_reach: 'restricted',
+          computed_link_role: null,
+          created_at: '2026-03-27T14:44:12.398544Z',
+          creator: '40d339e9-cd97-4fdc-b65f-0a809c7e2db9',
+          deleted_at: null,
+          depth: 3,
+          excerpt: null,
+          is_favorite: false,
+          link_role: 'reader',
+          link_reach: 'restricted',
+          nb_accesses_ancestors: 1,
+          nb_accesses_direct: 0,
+          numchild: 0,
+          path: `000000p00000010000001-${pageId}-${i}`,
+          title: `doc-child-${pageId}-${i}`,
+          updated_at: '2026-03-27T14:44:26.691903Z',
+          user_role: 'owner',
+        })),
+      };
+
+      if (request.method().includes('GET')) {
+        await route.fulfill({
+          json: response,
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    const [title] = await createDoc(
+      page,
+      'doc-tree-pagination',
+      browserName,
+      1,
+    );
+
+    const pageParentUrl = page.url();
+
+    const titleChild = await addChild({
+      page,
+      browserName,
+      docParent: title,
+      docName: 'doc-tree-pagination-child',
+    });
+
+    await addChild({
+      page,
+      browserName,
+      docParent: titleChild,
+      docName: 'doc-tree-pagination-child-2',
+    });
+
+    await page.goto(pageParentUrl);
+
+    await verifyDocName(page, title);
+
+    const docTree = page.getByTestId('doc-tree');
+    await expect(docTree).toBeVisible();
+    await docTree.getByText('keyboard_arrow_right').click();
+    await docTree
+      .getByRole('button', {
+        name: `Open document ${titleChild}`,
+      })
+      .click();
+
+    await expect(docTree.getByText('doc-child-1-19')).toBeVisible();
+    await docTree.getByText('doc-child-1-19').hover();
+    await expect(docTree.locator('.c__spinner')).toBeVisible();
+    await expect(
+      docTree.getByText('doc-child-2-1', {
+        exact: true,
+      }),
+    ).toBeVisible();
   });
 
   test('check the reorder of sub pages', async ({ page, browserName }) => {
@@ -42,15 +173,12 @@ test.describe('Doc Tree', () => {
     await expect(secondSubPageItem).toBeVisible();
 
     // Check the position of the sub pages
-    const allSubPageItems = await docTree
-      .getByTestId(/^doc-sub-page-item/)
-      .all();
-
-    expect(allSubPageItems.length).toBe(2);
+    const allSubPageItems = docTree.getByTestId(/^doc-sub-page-item/);
+    await expect(allSubPageItems).toHaveCount(2);
 
     // Check that elements are in the correct order
-    await expect(allSubPageItems[0].getByText('first move')).toBeVisible();
-    await expect(allSubPageItems[1].getByText('second move')).toBeVisible();
+    await expect(allSubPageItems.nth(0).getByText('first move')).toBeVisible();
+    await expect(allSubPageItems.nth(1).getByText('second move')).toBeVisible();
 
     // Will move the first sub page to the second position
     const firstSubPageBoundingBox = await firstSubPageItem.boundingBox();
@@ -90,17 +218,15 @@ test.describe('Doc Tree', () => {
     await expect(secondSubPageItem).toBeVisible();
 
     // Check that elements are in the correct order
-    const allSubPageItemsAfterReload = await docTree
-      .getByTestId(/^doc-sub-page-item/)
-      .all();
-
-    expect(allSubPageItemsAfterReload.length).toBe(2);
+    const allSubPageItemsAfterReload =
+      docTree.getByTestId(/^doc-sub-page-item/);
+    await expect(allSubPageItemsAfterReload).toHaveCount(2);
 
     await expect(
-      allSubPageItemsAfterReload[0].getByText('second move'),
+      allSubPageItemsAfterReload.nth(0).getByText('second move'),
     ).toBeVisible();
     await expect(
-      allSubPageItemsAfterReload[1].getByText('first move'),
+      allSubPageItemsAfterReload.nth(1).getByText('first move'),
     ).toBeVisible();
   });
 
@@ -137,8 +263,7 @@ test.describe('Doc Tree', () => {
       page.getByRole('textbox', { name: 'Document title' }),
     ).not.toHaveText(docChild);
 
-    const header = page.locator('header').first();
-    await header.locator('h1').getByText('Docs').click();
+    await page.getByRole('button', { name: 'Back to homepage' }).click();
     await expect(page.getByText(docChild)).toBeVisible();
   });
 
@@ -154,15 +279,18 @@ test.describe('Doc Tree', () => {
 
     await page.getByRole('button', { name: 'Share' }).click();
 
-    await addNewMember(page, 0, 'Owner', 'impress');
+    const otherBrowserName = getOtherBrowserName(browserName);
+    await addNewMember(page, 0, 'Owner', otherBrowserName);
 
     const list = page.getByTestId('doc-share-quick-search');
+    const currentEmail =
+      process.env[`SIGN_IN_USERNAME_${browserName.toUpperCase()}`] || '';
     const currentUser = list.getByTestId(
-      `doc-share-member-row-user.test@${browserName}.test`,
+      `doc-share-member-row-${currentEmail}`,
     );
     const currentUserRole = currentUser.getByTestId('doc-role-dropdown');
     await currentUserRole.click();
-    await page.getByRole('menuitem', { name: 'Administrator' }).click();
+    await page.getByRole('menuitemradio', { name: 'Administrator' }).click();
     await list.click();
 
     await page.getByRole('button', { name: 'Ok' }).click();
@@ -271,6 +399,49 @@ test.describe('Doc Tree', () => {
     await expect(rootMoreOptionsButton).toBeFocused();
   });
 
+  test('Shift+Tab from resize handle returns focus to selected sub-doc', async ({
+    page,
+    browserName,
+  }) => {
+    const [docParent] = await createDoc(
+      page,
+      'doc-tree-shift-tab',
+      browserName,
+      1,
+    );
+    await verifyDocName(page, docParent);
+
+    const { name: docChild } = await createRootSubPage(
+      page,
+      browserName,
+      'doc-tree-shift-tab-child',
+    );
+
+    const selectedSubDoc = await getTreeRow(page, docChild);
+    await expect(selectedSubDoc).toHaveAttribute('aria-selected', 'true');
+
+    await selectedSubDoc.focus();
+    await expect(selectedSubDoc).toBeFocused();
+
+    await page.keyboard.press('Tab');
+
+    await expect(page.getByLabel('Open help menu')).toBeFocused();
+
+    await page.keyboard.press('Tab');
+
+    await expect(
+      page.locator('[data-panel-resize-handle-id]').first(),
+    ).toBeFocused();
+
+    await page.keyboard.press('Shift+Tab');
+
+    await expect(page.getByLabel('Open help menu')).toBeFocused();
+
+    await page.keyboard.press('Shift+Tab');
+
+    await expect(selectedSubDoc).toBeFocused();
+  });
+
   test('it updates the child icon from the tree', async ({
     page,
     browserName,
@@ -322,18 +493,11 @@ test.describe('Doc Tree', () => {
     await expect(row.getByText('😀')).toBeHidden();
     await expect(titleEmojiPicker).toBeHidden();
   });
-});
-
-test.describe('Doc Tree: Inheritance', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
 
   test('A child inherit from the parent', async ({ page, browserName }) => {
     // test.slow() to extend timeout since this scenario chains Keycloak login + redirects,
     // doc creation/navigation and async doc-tree loading (/documents/:id/tree), which can exceed 30s (especially in CI).
     test.slow();
-
-    await page.goto('/');
-    await keyCloakSignIn(page, browserName);
 
     const [docParent] = await createDoc(
       page,
@@ -347,11 +511,7 @@ test.describe('Doc Tree: Inheritance', () => {
     const selectVisibility = page.getByTestId('doc-visibility');
     await selectVisibility.click();
 
-    await page
-      .getByRole('menuitem', {
-        name: 'Public',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Public' }).click();
 
     await expect(
       page.getByText('The document visibility has been updated.'),
@@ -365,22 +525,19 @@ test.describe('Doc Tree: Inheritance', () => {
       'doc-tree-inheritance-child',
     );
 
-    const urlDoc = page.url();
+    const docUrl = page.url();
 
-    await page
-      .getByRole('button', {
-        name: 'Logout',
-      })
-      .click();
+    const { otherPage, cleanup } = await connectOtherUserToDoc({
+      browserName,
+      docUrl,
+      withoutSignIn: true,
+      docTitle: docChild,
+    });
 
-    await expectLoginPage(page);
-
-    await page.goto(urlDoc);
-
-    await expect(page.locator('h2').getByText(docChild)).toBeVisible();
-
-    const docTree = page.getByTestId('doc-tree');
+    const docTree = otherPage.getByTestId('doc-tree');
     await expect(docTree).toBeVisible({ timeout: 10000 });
     await expect(docTree.getByText(docParent)).toBeVisible();
+
+    await cleanup();
   });
 });

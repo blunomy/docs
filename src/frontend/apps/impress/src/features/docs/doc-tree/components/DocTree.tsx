@@ -12,11 +12,17 @@ import { css } from 'styled-components';
 
 import { Box, Overlayer, StyledLink } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
-import { Doc, SimpleDocItem } from '@/docs/doc-management';
+import {
+  Doc,
+  SimpleDocItem,
+  useMoveDoc,
+  useTrans,
+} from '@/docs/doc-management';
+import { TreeSkeleton } from '@/features/skeletons/components/TreeSkeleton';
 
+import { CLASS_DOC_TITLE } from '../../doc-header';
 import { KEY_DOC_TREE, useDocTree } from '../api/useDocTree';
-import { useMoveDoc } from '../api/useMove';
-import { findIndexInTree } from '../utils';
+import { findIndexInTree, isDocNode } from '../utils';
 
 import { DocSubPageItem } from './DocSubPageItem';
 import { DocTreeItemActions } from './DocTreeItemActions';
@@ -28,6 +34,7 @@ type DocTreeProps = {
 export const DocTree = ({ currentDoc }: DocTreeProps) => {
   const { spacingsTokens } = useCunninghamTheme();
   const { isDesktop } = useResponsive();
+  const { untitledDocument } = useTrans();
   const [treeRoot, setTreeRoot] = useState<HTMLElement | null>(null);
   const treeContext = useTreeContext<Doc | null>();
   const router = useRouter();
@@ -37,7 +44,7 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
     treeContext?.treeData.selectedNode?.id === treeContext.root.id;
   const rootItemRef = useRef<HTMLDivElement>(null);
   const rootActionsRef = useRef<HTMLDivElement>(null);
-  const rootButtonOptionRef = useRef<HTMLDivElement | null>(null);
+  const rootButtonOptionRef = useRef<HTMLButtonElement | null>(null);
 
   const { t } = useTranslation();
 
@@ -92,26 +99,44 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
   // Handle keyboard navigation for root item
   const handleRootKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      // F2: focus first action button
-      if (e.key === 'F2' && !rootActionsOpen) {
-        e.preventDefault();
-        rootButtonOptionRef.current?.focus();
+      const target = e.target as HTMLElement | null;
+      const isInActions = !!target?.closest('.doc-tree-root-item-actions');
+      const isOnEmojiButton = !!target?.closest('.--docs--doc-icon');
+      const isOnRootItem = target === e.currentTarget;
+
+      if (e.key === 'F2' && !rootActionsOpen && !isInActions) {
+        if (
+          isOnEmojiButton ||
+          isOnRootItem ||
+          target?.classList.contains('c__tree-view--node')
+        ) {
+          e.preventDefault();
+          rootButtonOptionRef.current?.focus();
+        }
         return;
       }
 
-      // Ignore if focus is in actions
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('.doc-tree-root-item-actions')) {
+      if (isInActions) {
         return;
       }
 
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        selectRoot();
-        navigateToRoot();
+        if (currentDoc.id === treeContext?.root?.id) {
+          document.querySelector<HTMLElement>(`.${CLASS_DOC_TITLE}`)?.focus();
+        } else {
+          selectRoot();
+          navigateToRoot();
+        }
       }
     },
-    [selectRoot, navigateToRoot, rootActionsOpen],
+    [
+      selectRoot,
+      navigateToRoot,
+      rootActionsOpen,
+      currentDoc.id,
+      treeContext?.root?.id,
+    ],
   );
 
   // Handle menu open/close for root item - mirrors DocSubPageItem behavior
@@ -129,6 +154,13 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
   }, []);
 
   const handleRowKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      rootItemRef.current?.focus();
+      return;
+    }
+
     if (e.key !== 'Enter') {
       return;
     }
@@ -141,6 +173,13 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
         target.classList.contains('c__tree-view--node')
       )
     ) {
+      return;
+    }
+
+    const treeItem = e.currentTarget.querySelector('[role="treeitem"]');
+    if (treeItem?.getAttribute('aria-selected') === 'true') {
+      e.preventDefault();
+      document.querySelector<HTMLElement>(`.${CLASS_DOC_TITLE}`)?.focus();
       return;
     }
 
@@ -219,7 +258,7 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
   }, [currentDoc, treeContext]);
 
   if (!treeContext || !treeContext.root) {
-    return null;
+    return <TreeSkeleton />;
   }
 
   return (
@@ -265,7 +304,7 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
           ref={rootItemRef}
           data-testid="doc-tree-root-item"
           role="treeitem"
-          aria-label={`${t('Root document {{title}}', { title: treeContext.root?.title || t('Untitled document') })}`}
+          aria-label={`${t('Root document {{title}}', { title: treeContext.root?.title || untitledDocument })}`}
           aria-selected={rootIsSelected}
           tabIndex={0}
           onFocus={handleRootFocus}
@@ -274,6 +313,7 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
             padding: ${spacingsTokens['2xs']};
             border-radius: var(--c--globals--spacings--st);
             width: 100%;
+            min-width: 200px;
             background-color: ${rootIsSelected || rootActionsOpen
               ? 'var(--c--contextuals--background--semantic--contextual--primary)'
               : 'transparent'};
@@ -291,8 +331,8 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
             }
 
             .doc-tree-root-item-actions {
-              display: flex;
               opacity: ${rootActionsOpen ? '1' : '0'};
+              display: ${rootActionsOpen ? 'flex' : 'none'};
 
               &:has(.isOpen) {
                 opacity: 1;
@@ -325,7 +365,7 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
               );
               router.push(`/docs/${treeContext?.root?.id}`);
             }}
-            aria-label={`${t('Open root document')}: ${treeContext.root?.title || t('Untitled document')}`}
+            aria-label={`${t('Open root document')}: ${treeContext.root?.title || untitledDocument}`}
             tabIndex={-1} // avoid double tabstop
           >
             <Box $direction="row" $align="center" $width="100%">
@@ -366,15 +406,17 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
                 undefined
               }
               canDrop={({ parentNode }) => {
-                const parentDoc = parentNode?.data.value as Doc;
-                if (!parentDoc) {
+                const parentValue = parentNode?.data.value;
+                if (!parentValue || !isDocNode(parentValue)) {
                   return currentDoc.abilities.move && isDesktop;
                 }
-                return parentDoc.abilities.move && isDesktop;
+                return parentValue.abilities.move && isDesktop;
               }}
               canDrag={(node) => {
-                const doc = node.value as Doc;
-                return doc.abilities.move && isDesktop;
+                if (!isDocNode(node.value)) {
+                  return false;
+                }
+                return node.value.abilities.move && isDesktop;
               }}
               rootNodeId={treeContext.root.id}
               renderNode={DocSubPageItem}

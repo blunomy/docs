@@ -19,11 +19,12 @@ export const ModalConfirmDownloadUnsafe = ({
       isOpen
       closeOnClickOutside
       onClose={() => onClose()}
-      aria-describedby="modal-confirm-download-unsafe-title"
+      aria-label={t('Warning')}
       rightActions={
         <>
           <Button
             aria-label={t('Cancel the download')}
+            autoFocus
             variant="secondary"
             onClick={() => onClose()}
           >
@@ -47,7 +48,7 @@ export const ModalConfirmDownloadUnsafe = ({
       size={ModalSize.SMALL}
       title={
         <Text
-          as="h1"
+          as="h2"
           id="modal-confirm-download-unsafe-title"
           $gap="0.7rem"
           $size="h6"
@@ -60,10 +61,7 @@ export const ModalConfirmDownloadUnsafe = ({
         </Text>
       }
     >
-      <Box
-        aria-label={t('Modal confirmation to download the attachment')}
-        className="--docs--modal-confirm-download-unsafe"
-      >
+      <Box className="--docs--modal-confirm-download-unsafe">
         <Box>
           <Box $direction="column" $gap="0.35rem" $margin={{ top: 'sm' }}>
             <Text $variation="secondary">

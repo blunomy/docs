@@ -6,9 +6,201 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- 🚸(frontend) allow opening "@page" links with ctrl/command/middle-mouse click
+- ✅ E2E - Any instance friendly #2142
+
+## [v4.8.5] - 2026-04-03
+
+### Added
+
+- 🔧(backend) settings CONVERSION_UPLOAD_ENABLED to control usage of docspec
+- 🥚(frontend) add easter egg on doc emoji creation #2155
+
+### Changed
+
+- ♿(frontend) use aria-haspopup menu on DropButton triggers #2126
+- ♿️(frontend) add contextual browser tab titles for docs routes #2120
+- ♿️(frontend) fix empty heading before section titles in HTML export #2125
+
+### Fixed
+
+- ⚡️(frontend) add jitter to WS reconnection #2162
+- 🐛(frontend) fix tree pagination #2145
+- 🐛(nginx) add page reconciliation on nginx #2154
+
+
+## [v4.8.4] - 2026-03-25
+
+### Added
+
+- 🚸(frontend) hint min char search users #2064
+
+### Changed
+
+- 💄(frontend) improve comments highlights #1961
+- ♿️(frontend) improve BoxButton a11y and native button semantics #2103
+- ♿️(frontend) improve language picker accessibility #2069
+- ♿️(frontend) add aria-hidden to decorative icons in dropdown menu #2093
+- 🐛(backend) move lock table closer to the insert operation targeted
+- ♿️(frontend) replace ARIA grid pattern with list in docs grid #2131
+
+### Fixed
+
+- 🐛(y-provider) destroy Y.Doc instances after each convert request #2129
+- 🐛(backend) remove deleted sub documents in favorite_list endpoint #2083
+
+## [v4.8.3] - 2026-03-23
+
+### Changed
+
+- ♿️(frontend) improve version history list accessibility #2033
+- ♿(frontend) focus skip link on headings and skip grid dropzone #1983
+- ♿️(frontend) add sr-only format to export download button #2088
+- ♿️(frontend) announce formatting shortcuts for screen readers #2070
+- ✨(frontend) add markdown copy icon for Copy as Markdown option #2096
+- ♻️(backend) skip saving in database a document when payload is empty #2062
+- ♻️(frontend) refacto Version modal to fit with the design system #2091
+- ⚡️(frontend) add debounce WebSocket reconnect #2104
+
+### Fixed
+
+- ♿️(frontend) fix more options menu feedback for screen readers #2071
+- ♿️(frontend) fix more options menu feedback for screen readers #2071
+- 💫(frontend) fix the help button to the bottom in tree #2073
+- ♿️(frontend) fix aria-labels for table of contents #2065
+- 🐛(backend) allow using search endpoint without refresh token enabled #2097
+- 🐛(frontend) fix close panel when click on subdoc #2094
+- 🐛(frontend) fix leftpanel button in doc version #9238
+- 🐛(y-provider) fix loop when no cookies #2101
+
+## [v4.8.2] - 2026-03-19
+
+### Added
+
+- ✨(backend) add resource server api #1923
+- ✨(frontend) activate Find search #1834
+- ✨ handle searching on subdocuments #1834
+- ✨(backend) add search feature flags #1897
+
+### Changed
+
+- ♿️(frontend) ensure doc title is h1 for accessibility #2006
+- ♿️(frontend) add nb accesses in share button aria-label #2017
+- ✨(backend) improve fallback logic on search endpoint #1834
+
+### Fixed
+
+- 🐛(frontend) fix image resizing when caption #2045
+- 🙈(docker) add \*\*/.next to .dockerignore #2034
+- ♿️(frontend) fix share modal heading hierarchy #2007
+- ♿️(frontend) fix Copy link toast accessibility for screen readers #2029
+- ♿️(frontend) fix modal aria-label and name #2014
+- ♿️(frontend) fix language dropdown ARIA for screen readers #2020
+- ♿️(frontend) fix waffle aria-label spacing for new-window links #2030
+- 🐛(backend) stop using add_sibling method to create sandbox document #2084
+- 🐛(backend) duplicate a document as last-sibling #2084
+
+### Removed
+
+- 🔥(api) remove `documents/<document_id>/descendants/` endpoint #1834
+- 🔥(api) remove pagination on `documents/search/` endpoint #1834
+
+## [v4.8.1] - 2026-03-17
+
+### Added
+
+- 🔧(backend) add DB_PSYCOPG_POOL_ENABLED settings #2035
+
+### Changed
+
+- ⬇️(backend) downgrade django-treebeard to version < 5.0.0 #2036
+
+## [v4.8.0] - 2026-03-13
+
+### Added
+
+- ✨(backend) add a is_first_connection flag to the User model #1938
+- ✨(frontend) add onboarding modal with help menu button #1868
+
+### Changed
+
+- ♿(frontend) localize LaGaufre label fallback in Docs #1979
+- ✨(backend) add a migration cleaning on-boarding document accesses #1971
+- ⬆️(frontend) upgrade Next.js to v16 #1980
+- ♿️(frontend) fix aria-label and landmark on document banner state #1986
+- 🌐(i18n) add "new window" translation key for waffle aria-label #1984
+
+### Fixed
+
+- 🐛(backend) create a link_trace record for on-boarding documents #1971
+- 🐛(backend) manage race condition when creating sandbox document #1971
+- 🐛(frontend) fix flickering left panel #1989
+- ♿️(frontend) improve doc tree keyboard navigation #1981
+- 🔧(helm) allow specific env var for the backend and celery deploy
+
+## [v4.7.0] - 2026-03-09
+
+### Added
+
+- ✨(helm) allow all keys in configMap as env var #1872
+
+### Changed
+
+- 📝(docs) improve README and add documentation hub #1870
+- ♿️(frontend) restore focus to triggers after closing menus and modals #1863
+- 🚸(frontend) change position elements toolbar #1957
+- ♿️(frontend) add focus on open to modals #1948
+
+### Fixed
+
+- 🐛(frontend) analytic feature flags problem #1953
+- 🐛(frontend) fix home collapsing panel #1954
+- 🐛(frontend) fix disabled color on icon Dropdown #1950
+- 🐛(frontend) fix zIndex table of content #1949
+- 🐛(frontend) fix bug when language not supported by BN #1957
+- 🐛 (backend) prevent privileged users from requesting access #1898
+
+## [v4.6.0] - 2026-03-03
+
+### Added
+
+- ✨(frontend) integrate new Blocknote AI feature #1847
+- 👷(docker) add arm64 platform support for image builds #1901
+- ✨(tracking) add UTM parameters to shared document links #1896
+- ✨(frontend) add floating bar with leftpanel collapse button #1876
+- ✨(frontend) Can print a doc #1832
+- ✨(backend) manage reconciliation requests for user accounts #1878
+- 👷(CI) add GHCR workflow for forked repo testing #1851
+- ✨(frontend) Move doc modal #1886
+- ⚡️(backend) remove content from Document serializer when asked #1910
+- ✨(backend) allow the duplication of subpages #1893
+- ✨(backend) Onboarding docs for new users #1891
+- 🩺(trivy) add trivyignore file and add minimatch CVE #1915
+- 🚩 Add feature flags for the AI feature #1922
+- 🍱(frontend) add icons ui-kit #1943
+
+### Changed
+
+- ♿️(frontend) prevent dates from being focusable #1855
+- ♿️(frontend) Focus main container after navigation #1864
+- 💄(frontend) align colors and logo with ui-kit v2 #1869
+- 🚸(backend) sort user search results by proximity with the active user #1802
+- 🚸(oidc) ignore case when fallback on email #1880
+- ⚡️(CI) optimize Docker Hub workflow #1919
+
+### Fixed
+
+- 🐛(frontend) fix broadcast store sync #1846
+- 🐛(helm) use celery resources instead of backend resources #1887
+- 🐛(helm) reverse liveness and readiness for backend deployment #1887
+- 🐛(y-provider) use CONVERSION_FILE_MAX_SIZE settings #1913
+- 🐛(frontend) fix callout block spacing for old browsers #1914
+
 ## [v4.5.0] - 2026-01-28
 
-### Added 
+### Added
 
 - ✨(frontend) integrate configurable Waffle #1795
 - ✨ Import of documents #1609
@@ -35,6 +227,8 @@ and this project adheres to
 ### Removed
 
 - 🔥(project) remove all code related to template #1780
+- 🔥(api) remove `documents/<document_id>/descendants/` endpoint #1834
+- 🔥(api) remove pagination on `documents/search/` endpoint #1834
 
 ### Security
 
@@ -245,7 +439,7 @@ and this project adheres to
 - ♻️(frontend) Refactor Auth component for improved redirection logic #1461
 - ♻️(frontend) replace Arial font-family with token font #1411
 - ♿(frontend) improve accessibility:
-  - ♿(frontend) enable enter key to open documentss #1354
+  - ♿(frontend) enable enter key to open documents #1354
   - ♿(frontend) improve modal a11y: structure, labels, title #1349
   - ♿improve NVDA navigation in DocShareModal #1396
   - ♿ improve accessibility by adding landmark roles to layout #1394
@@ -453,10 +647,10 @@ and this project adheres to
 
 - ✨(backend) add endpoint checking media status #984
 - ✨(backend) allow setting session cookie age via env var #977
-- ✨(backend) allow theme customnization using a configuration file #948
+- ✨(backend) allow theme customization using a configuration file #948
 - ✨(frontend) Add a custom callout block to the editor #892
 - 🚩(frontend) version MIT only #911
-- ✨(backend) integrate maleware_detection from django-lasuite #936
+- ✨(backend) integrate malware_detection from django-lasuite #936
 - 🏗️(frontend) Footer configurable #959
 - 🩺(CI) add lint spell mistakes #954
 - ✨(frontend) create generic theme #792
@@ -1024,7 +1218,15 @@ and this project adheres to
 - ✨(frontend) Coming Soon page (#67)
 - 🚀 Impress, project to manage your documents easily and collaboratively.
 
-[unreleased]: https://github.com/suitenumerique/docs/compare/v4.5.0...main
+[unreleased]: https://github.com/suitenumerique/docs/compare/v4.8.5...main
+[v4.8.5]: https://github.com/suitenumerique/docs/releases/v4.8.5
+[v4.8.4]: https://github.com/suitenumerique/docs/releases/v4.8.4
+[v4.8.3]: https://github.com/suitenumerique/docs/releases/v4.8.3
+[v4.8.2]: https://github.com/suitenumerique/docs/releases/v4.8.2
+[v4.8.1]: https://github.com/suitenumerique/docs/releases/v4.8.1
+[v4.8.0]: https://github.com/suitenumerique/docs/releases/v4.8.0
+[v4.7.0]: https://github.com/suitenumerique/docs/releases/v4.7.0
+[v4.6.0]: https://github.com/suitenumerique/docs/releases/v4.6.0
 [v4.5.0]: https://github.com/suitenumerique/docs/releases/v4.5.0
 [v4.4.0]: https://github.com/suitenumerique/docs/releases/v4.4.0
 [v4.3.0]: https://github.com/suitenumerique/docs/releases/v4.3.0

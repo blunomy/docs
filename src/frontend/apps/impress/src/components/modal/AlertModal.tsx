@@ -1,5 +1,11 @@
-import { Button, Modal, ModalSize } from '@gouvfr-lasuite/cunningham-react';
-import { ReactNode } from 'react';
+import {
+  Button,
+  ButtonProps,
+  Modal,
+  ModalProps,
+  ModalSize,
+} from '@gouvfr-lasuite/cunningham-react';
+import { ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Box } from '../Box';
@@ -10,10 +16,11 @@ export type AlertModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  themeCTA?: ButtonProps['color'];
   title: string;
   cancelLabel?: string;
   confirmLabel?: string;
-};
+} & Partial<ModalProps>;
 
 export const AlertModal = ({
   cancelLabel,
@@ -23,14 +30,33 @@ export const AlertModal = ({
   onClose,
   onConfirm,
   title,
+  themeCTA,
+  ...props
 }: AlertModalProps) => {
   const { t } = useTranslation();
+
+  /**
+   * TODO:
+   * Remove this effect when Cunningham will have this patch released:
+   * https://github.com/suitenumerique/cunningham/pull/377
+   */
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const contents = document.querySelectorAll('.c__modal__content');
+      contents.forEach((content) => {
+        content.setAttribute('tabindex', '-1');
+      });
+    }, 100);
+    return () => clearTimeout(timeout);
+  }, []);
+
   return (
     <Modal
+      closeOnClickOutside
       isOpen={isOpen}
       size={ModalSize.MEDIUM}
       onClose={onClose}
-      aria-describedby="alert-modal-title"
+      aria-label={title}
       title={
         <Text
           $size="h6"
@@ -43,24 +69,26 @@ export const AlertModal = ({
         </Text>
       }
       rightActions={
-        <>
+        <Box $direction="row" $gap="small">
           <Button
             aria-label={`${t('Cancel')} - ${title}`}
             variant="secondary"
             fullWidth
-            onClick={() => onClose()}
+            autoFocus
+            onClick={onClose}
           >
             {cancelLabel ?? t('Cancel')}
           </Button>
           <Button
             aria-label={confirmLabel ?? t('Confirm')}
-            color="error"
+            color={themeCTA ?? 'error'}
             onClick={onConfirm}
           >
             {confirmLabel ?? t('Confirm')}
           </Button>
-        </>
+        </Box>
       }
+      {...props}
     >
       <Box className="--docs--alert-modal">
         <Box>

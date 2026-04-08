@@ -79,10 +79,16 @@ create-env-local-files:
 	@touch env.d/development/kc_postgresql.local
 .PHONY: create-env-local-files
 
+generate-secret-keys:
+generate-secret-keys: ## generate secret keys to be stored in common.local
+	@bin/generate-oidc-store-refresh-token-key.sh
+.PHONY: generate-secret-keys
+
 pre-bootstrap: \
 	data/media \
 	data/static \
-	create-env-local-files
+	create-env-local-files \
+	generate-secret-keys
 .PHONY: pre-bootstrap
 
 post-bootstrap: \
@@ -156,6 +162,10 @@ endif
 	@echo ""
 .PHONY: post-beautiful-bootstrap
 
+create-docker-network: ## create the docker network if it doesn't exist
+	@docker network create lasuite-network || true
+.PHONY: create-docker-network
+
 bootstrap: ## Prepare the project for local development
 bootstrap: \
 	pre-beautiful-bootstrap \
@@ -204,6 +214,10 @@ build-e2e: ## build the e2e container
 	@$(COMPOSE_E2E) build y-provider $(cache)
 .PHONY: build-e2e
 
+nginx-frontend: ## build the nginx-frontend container
+	@$(COMPOSE) up --force-recreate -d nginx-frontend
+.PHONY: nginx-frontend
+
 down: ## stop and remove containers, networks, images, and volumes
 	@$(COMPOSE_E2E) down
 .PHONY: down
@@ -213,6 +227,7 @@ logs: ## display app-dev logs (follow mode)
 .PHONY: logs
 
 run-backend: ## Start only the backend application and all needed services
+	@$(MAKE) create-docker-network
 	@$(COMPOSE) up --force-recreate -d docspec
 	@$(COMPOSE) up --force-recreate -d celery-dev
 	@$(COMPOSE) up --force-recreate -d y-provider-development

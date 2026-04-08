@@ -16,6 +16,12 @@ the following command inside your docker container:
 
 ## [Unreleased]
 
+## [4.6.0] - 2026-02-27
+
+- ⚠️ Some setup have changed to offer a bigger flexibility and consistency, overriding the favicon and logo are now from the theme configuration.
+https://github.com/suitenumerique/docs/blob/f24b047a7cc146411412bf759b5b5248a45c3d99/src/backend/impress/configuration/theme/default.json#L129-L161
+
+
 ## [4.0.0] - 2025-11-26
 
 - ⚠️ We updated `@gouvfr-lasuite/ui-kit` to `0.18.0`, so if you are customizing Docs with a css layer or with a custom template, you need to update your customization to follow the new design system structure.  
@@ -62,5 +68,5 @@ service.
 
 - AI features are now limited to users who are authenticated. Before this release, even anonymous
   users who gained editor access on a document with link reach used to get AI feature.
-  IF you want anonymous users to keep access on AI features, you must now define the
+  If you want anonymous users to keep access on AI features, you must now define the
   `AI_ALLOW_REACH_FROM` setting to "public".

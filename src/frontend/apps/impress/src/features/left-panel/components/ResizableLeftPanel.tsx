@@ -8,6 +8,8 @@ import {
 
 import { useResponsiveStore } from '@/stores';
 
+import { useLeftPanelStore } from '../stores';
+
 // Convert a target pixel width to a percentage of the current viewport width.
 const pxToPercent = (px: number) => {
   return (px / window.innerWidth) * 100;
@@ -27,8 +29,10 @@ export const ResizableLeftPanel = ({
   maxPanelSizePx = 450,
 }: ResizableLeftPanelProps) => {
   const { isDesktop } = useResponsiveStore();
+  const { isPanelOpen } = useLeftPanelStore();
   const ref = useRef<ImperativePanelHandle>(null);
   const savedWidthPxRef = useRef<number>(minPanelSizePx);
+  const [isDragging, setIsDragging] = useState(false);
 
   const minPanelSizePercent = pxToPercent(minPanelSizePx);
   const maxPanelSizePercent = Math.min(pxToPercent(maxPanelSizePx), 40);
@@ -40,6 +44,37 @@ export const ResizableLeftPanel = ({
       Math.min(initialSize, maxPanelSizePercent),
     );
   });
+
+  const [isMounting, setIsMounting] = useState(false);
+
+  /**
+   * To avoid flickering animation on initial load
+   */
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setIsMounting(true);
+    }, 500);
+
+    return () => {
+      clearTimeout(timeout);
+      setIsMounting(false);
+    };
+  }, []);
+
+  /**
+   * When the panel is toggled open/closed, we want
+   * to either expand/collapse
+   */
+  useEffect(() => {
+    if (!ref.current || !isDesktop) {
+      return;
+    }
+    if (isPanelOpen) {
+      ref.current.expand();
+    } else {
+      ref.current.collapse();
+    }
+  }, [isPanelOpen, isDesktop]);
 
   // Keep pixel width constant on window resize
   useEffect(() => {
@@ -71,6 +106,15 @@ export const ResizableLeftPanel = ({
     <PanelGroup direction="horizontal">
       <Panel
         ref={ref}
+        className="--docs--resizable-left-panel"
+        collapsible={!isPanelOpen}
+        collapsedSize={0}
+        style={{
+          transition:
+            isDragging || !isMounting
+              ? 'none'
+              : 'flex var(--c--globals--transitions--duration) var(--c--globals--transitions--ease-out)',
+        }}
         order={0}
         defaultSize={
           isDesktop
@@ -86,17 +130,19 @@ export const ResizableLeftPanel = ({
       >
         {leftPanel}
       </Panel>
-      <PanelResizeHandle
-        style={{
-          borderRightWidth: '1px',
-          borderRightStyle: 'solid',
-          borderRightColor: 'var(--c--contextuals--border--surface--primary)',
-          width: '1px',
-          cursor: 'col-resize',
-        }}
-        disabled={!isDesktop}
-      />
-
+      {isPanelOpen && (
+        <PanelResizeHandle
+          style={{
+            borderRightWidth: '1px',
+            borderRightStyle: 'solid',
+            borderRightColor: 'var(--c--contextuals--border--surface--primary)',
+            width: '1px',
+            cursor: 'col-resize',
+          }}
+          onDragging={setIsDragging}
+          disabled={!isDesktop}
+        />
+      )}
       <Panel order={1}>{children}</Panel>
     </PanelGroup>
   );

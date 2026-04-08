@@ -375,8 +375,8 @@ export const tokens = {
             black: 900,
           },
           families: {
-            base: 'Hanken Grotesk, Inter, Roboto Flex Variable, sans-serif',
-            accent: 'Hanken Grotesk, Inter, Roboto Flex Variable, sans-serif',
+            base: 'Inter Variable, Roboto Flex Variable, sans-serif',
+            accent: 'Inter Variable, Roboto Flex Variable, sans-serif',
           },
         },
         spacings: {
@@ -675,13 +675,6 @@ export const tokens = {
           success: { 'background-color': '#CFE4D4', color: '#016D31' },
           warning: { 'background-color': '#F1E0D3', color: '#AD3300' },
           info: { 'background-color': '#D5E4F3', color: '#005BC0' },
-        },
-        logo: { src: '', alt: '', widthHeader: '', widthFooter: '' },
-        'home-proconnect': false,
-        icon: { src: '/assets/icon-docs.svg', width: '32px', height: 'auto' },
-        favicon: {
-          'png-light': '/assets/favicon-light.png',
-          'png-dark': '/assets/favicon-dark.png',
         },
       },
     },
@@ -1343,8 +1336,9 @@ export const tokens = {
           },
           weights: { thin: 100, extrabold: 800, black: 900 },
           families: {
-            accent: 'Marianne, Inter, Roboto Flex Variable, sans-serif',
-            base: 'Marianne, Inter, Roboto Flex Variable, sans-serif',
+            accent:
+              'Marianne, Inter Variable, Roboto Flex Variable, sans-serif',
+            base: 'Marianne, Inter Variable, Roboto Flex Variable, sans-serif',
           },
         },
         spacings: {
@@ -1965,23 +1959,6 @@ export const tokens = {
           success: { 'background-color': '#CFE4D4', color: '#016D31' },
           warning: { 'background-color': '#F1E0D3', color: '#AD3300' },
           info: { 'background-color': '#D5E4F3', color: '#005BC0' },
-        },
-        logo: {
-          src: '/assets/logo-gouv.svg',
-          alt: 'Gouvernement Logo',
-          widthHeader: '110px',
-          widthFooter: '220px',
-        },
-        'home-proconnect': true,
-        icon: {
-          src: '/assets/icon-docs-dsfr.svg',
-          width: '32px',
-          height: 'auto',
-        },
-        favicon: {
-          'png-light': '/assets/favicon-dsfr.png',
-          'png-dark': '/assets/favicon-dark-dsfr.png',
-          ico: '/assets/favicon-dsfr.ico',
         },
       },
     },

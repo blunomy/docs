@@ -38,6 +38,7 @@ export const ModalRemoveDoc = ({
   const { push } = useRouter();
   const { hasChildren } = useDocUtils(doc);
   const cancelButtonRef = useRef<ButtonElement>(null);
+
   const {
     mutate: removeDoc,
     isError,
@@ -60,17 +61,14 @@ export const ModalRemoveDoc = ({
       },
     },
   });
-
+  // react-aria Popover restores focus to its trigger asynchronously
+  // when closing, which races with autoFocus when the modal is opened
+  // from a dropdown. This ensures focus wins after that restoration.
   useEffect(() => {
-    const TIMEOUT_MODAL_MOUNTING = 100;
-    const timeoutId = setTimeout(() => {
-      const buttonElement = cancelButtonRef.current;
-      if (buttonElement) {
-        buttonElement.focus();
-      }
-    }, TIMEOUT_MODAL_MOUNTING);
-
-    return () => clearTimeout(timeoutId);
+    const id = requestAnimationFrame(() => {
+      cancelButtonRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
   const keyboardAction = useKeyboardAction();
@@ -92,7 +90,7 @@ export const ModalRemoveDoc = ({
       closeOnClickOutside
       hideCloseButton
       onClose={handleClose}
-      aria-describedby="modal-remove-doc-title"
+      aria-label={t('Delete a doc')}
       rightActions={
         <>
           <Button
@@ -100,6 +98,7 @@ export const ModalRemoveDoc = ({
             aria-label={t('Cancel the deletion')}
             variant="secondary"
             fullWidth
+            autoFocus
             onClick={handleClose}
             onKeyDown={handleCloseKeyDown}
           >
@@ -118,12 +117,7 @@ export const ModalRemoveDoc = ({
       }
       size={ModalSize.MEDIUM}
       title={
-        <Box
-          $direction="row"
-          $justify="space-between"
-          $align="center"
-          $width="100%"
-        >
+        <>
           <Text
             $size="h6"
             as="h1"
@@ -133,12 +127,14 @@ export const ModalRemoveDoc = ({
           >
             {t('Delete a doc')}
           </Text>
-          <ButtonCloseModal
-            aria-label={t('Close the delete modal')}
-            onClick={handleClose}
-            onKeyDown={handleCloseKeyDown}
-          />
-        </Box>
+          <Box $position="absolute" $css="top: 4px; right: 4px;">
+            <ButtonCloseModal
+              aria-label={t('Close the delete modal')}
+              onClick={handleClose}
+              onKeyDown={handleCloseKeyDown}
+            />
+          </Box>
+        </>
       }
     >
       <Box className="--docs--modal-remove-doc">

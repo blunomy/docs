@@ -1,5 +1,6 @@
 import { TreeProvider } from '@gouvfr-lasuite/ui-kit';
 import { useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
@@ -7,7 +8,6 @@ import { useTranslation } from 'react-i18next';
 
 import { Box, Icon, Loading, TextErrors } from '@/components';
 import { DEFAULT_QUERY_RETRY } from '@/core';
-import { DocEditor } from '@/docs/doc-editor';
 import {
   Doc,
   DocPage403,
@@ -19,12 +19,21 @@ import {
   useTrans,
 } from '@/docs/doc-management/';
 import { KEY_AUTH, setAuthUrl, useAuth } from '@/features/auth';
+import { FloatingBar } from '@/features/docs/doc-header/components/FloatingBar';
 import { getDocChildren, subPageToTree } from '@/features/docs/doc-tree/';
-import { useSkeletonStore } from '@/features/skeletons';
+import { DocEditorSkeleton, useSkeletonStore } from '@/features/skeletons';
 import { MainLayout } from '@/layouts';
 import { MAIN_LAYOUT_ID } from '@/layouts/conf';
-import { useBroadcastStore } from '@/stores';
+import { useBroadcastStore } from '@/stores/useBroadcastStore';
 import { NextPageWithLayout } from '@/types/next';
+
+const DocEditor = dynamic(
+  () => import('@/docs/doc-editor').then((mod) => ({ default: mod.DocEditor })),
+  {
+    ssr: false,
+    loading: () => <DocEditorSkeleton />,
+  },
+);
 
 export function DocLayout() {
   const {
@@ -47,11 +56,16 @@ export function DocLayout() {
           const doc = await getDocChildren({ docId, page });
           return {
             children: subPageToTree(doc.results),
-            hasMore: !!doc.next,
+            pagination: {
+              currentPage: page,
+              hasMore: !!doc.next,
+              totalCount: doc.count,
+            },
           };
         }}
       >
         <MainLayout enableResizablePanel={true}>
+          <FloatingBar />
           <DocPage id={id} />
         </MainLayout>
       </TreeProvider>
@@ -149,11 +163,16 @@ const DocPage = ({ id }: DocProps) => {
     setCurrentDoc(docQuery);
   }, [docQuery, setCurrentDoc, isFetching]);
 
+  /**
+   * Reset state when unmounting the component to avoid
+   * showing stale data when navigating to another document
+   */
   useEffect(() => {
     return () => {
       setCurrentDoc(undefined);
+      setIsSkeletonVisible(false);
     };
-  }, [setCurrentDoc]);
+  }, [setCurrentDoc, setIsSkeletonVisible]);
 
   /**
    * We add a broadcast task to reset the query cache

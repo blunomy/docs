@@ -134,10 +134,12 @@ DJANGO_EMAIL_URL_APP=<url used in email templates to go to the app> # e.g. "http
 
 Built-in AI actions let users generate, summarize, translate, and correct content.
 
-AI is disabled by default. To enable it, the following environment variables must be set in in `env.d/backend`:
+AI is disabled by default. To enable it, the following environment variables must be set in `env.d/backend`:
 
 ```env
 AI_FEATURE_ENABLED=true # is false by default
+AI_FEATURE_BLOCKNOTE_ENABLED=true # is false by default
+AI_FEATURE_LEGACY_ENABLED=true # is true by default, AI_FEATURE_ENABLED must be set to true to enable it 
 AI_BASE_URL=https://openaiendpoint.com
 AI_API_KEY=<API key>
 AI_MODEL=<model used> e.g. llama
@@ -150,7 +152,7 @@ You can [customize your Docs instance](../theming.md) with your own theme and cu
 The following environment variables must be set in `env.d/backend`:
 
 ```env
-FRONTEND_THEME=default # name of your theme built with cuningham
+FRONTEND_THEME=default # name of your theme built with Cunningham
 FRONTEND_CSS_URL=https://storage.yourdomain.tld/themes/custom.css # custom css
 ```
 
@@ -204,7 +206,7 @@ Replace `<admin email>` with the email of your admin user and generate a secure 
 
 Your docs instance is now available on the domain you defined, https://docs.yourdomain.tld.
 
-THe admin interface is available on https://docs.yourdomain.tld/admin with the admin user you just created.
+The admin interface is available on https://docs.yourdomain.tld/admin with the admin user you just created.
 
 ## How to upgrade your Docs application
 

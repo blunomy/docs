@@ -1,7 +1,5 @@
 const crypto = require('crypto');
-const path = require('path');
 
-const CopyPlugin = require('copy-webpack-plugin');
 const { InjectManifest } = require('workbox-webpack-plugin');
 
 const buildId = crypto.randomBytes(256).toString('hex').slice(0, 8);
@@ -17,9 +15,26 @@ const nextConfig = {
     // Enables the styled-components SWC transform
     styledComponents: true,
   },
+  experimental: {
+    // Tree-shake barrel files for these packages so webpack only bundles the
+    // symbols that are actually imported, reducing chunk sizes noticeably for
+    // Mantine and the Cunningham design system.
+    optimizePackageImports: ['@mantine/core', '@mantine/hooks', 'lodash'],
+  },
   generateBuildId: () => buildId,
   env: {
     NEXT_PUBLIC_BUILD_ID: buildId,
+  },
+  /**
+   * In dev mode, Next.js doesn't use Webpack, but Turbopack.
+   */
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
   },
   webpack(config, { isServer }) {
     // Grab the existing rule that handles SVG imports
@@ -41,22 +56,6 @@ const nextConfig = {
         resourceQuery: { not: [...fileLoaderRule.resourceQuery.not, /url/] }, // exclude if *.svg?url
         use: ['@svgr/webpack'],
       },
-    );
-
-    // Copy necessary fonts from node_modules to public directory during build or dev
-    config.plugins.push(
-      new CopyPlugin({
-        patterns: [
-          {
-            from: path.resolve(
-              __dirname,
-              '../../node_modules/emoji-datasource-apple/img/apple/64',
-            ),
-            to: path.resolve(__dirname, 'public/assets/fonts/emoji'),
-            force: true,
-          },
-        ],
-      }),
     );
 
     if (!isServer && process.env.NEXT_PUBLIC_SW_DEACTIVATED !== 'true') {

@@ -41,7 +41,7 @@ test.describe('Doc Comments', () => {
     // We add a comment with the first user
     const editor = await writeInEditor({ page, text: 'Hello World' });
     await editor.getByText('Hello').selectText();
-    await page.getByRole('button', { name: 'Comment' }).click();
+    await page.getByRole('button', { name: 'Add comment' }).click();
 
     const thread = page.locator('.bn-thread');
     await thread.getByRole('paragraph').first().fill('This is a comment');
@@ -58,10 +58,14 @@ test.describe('Doc Comments', () => {
     await page.getByRole('button', { name: '👍' }).click();
 
     await expect(
-      thread.getByRole('img', { name: `E2E ${browserName}` }).first(),
+      thread
+        .getByRole('img', { name: `${process.env.FIRST_NAME} ${browserName}` })
+        .first(),
     ).toBeVisible();
     await expect(thread.getByText('This is a comment').first()).toBeVisible();
-    await expect(thread.getByText(`E2E ${browserName}`).first()).toBeVisible();
+    await expect(
+      thread.getByText(`${process.env.FIRST_NAME} ${browserName}`).first(),
+    ).toBeVisible();
     await expect(thread.locator('.bn-comment-reaction')).toHaveText('👍1');
 
     const urlCommentDoc = page.url();
@@ -85,7 +89,7 @@ test.describe('Doc Comments', () => {
       otherThread.getByText('This is a comment').first(),
     ).toBeVisible();
     await expect(
-      otherThread.getByText(`E2E ${browserName}`).first(),
+      otherThread.getByText(`${process.env.FIRST_NAME} ${browserName}`).first(),
     ).toBeVisible();
     await expect(otherThread.locator('.bn-comment-reaction')).toHaveText('👍2');
 
@@ -98,13 +102,19 @@ test.describe('Doc Comments', () => {
 
     // We check that the second user can see the comment he just made
     await expect(
-      otherThread.getByRole('img', { name: `E2E ${otherBrowserName}` }).first(),
+      otherThread
+        .getByRole('img', {
+          name: `${process.env.FIRST_NAME} ${otherBrowserName}`,
+        })
+        .first(),
     ).toBeVisible();
     await expect(
       otherThread.getByText('This is a comment from the other user').first(),
     ).toBeVisible();
     await expect(
-      otherThread.getByText(`E2E ${otherBrowserName}`).first(),
+      otherThread
+        .getByText(`${process.env.FIRST_NAME} ${otherBrowserName}`)
+        .first(),
     ).toBeVisible();
 
     // We check that the first user can see the comment made by the second user in real time
@@ -112,7 +122,7 @@ test.describe('Doc Comments', () => {
       thread.getByText('This is a comment from the other user').first(),
     ).toBeVisible();
     await expect(
-      thread.getByText(`E2E ${otherBrowserName}`).first(),
+      thread.getByText(`${process.env.FIRST_NAME} ${otherBrowserName}`).first(),
     ).toBeVisible();
 
     await cleanup();
@@ -124,18 +134,19 @@ test.describe('Doc Comments', () => {
     // Checks add react reaction
     const editor = await writeInEditor({ page, text: 'Hello' });
     await editor.getByText('Hello').selectText();
-    await page.getByRole('button', { name: 'Comment' }).click();
+    await page.getByRole('button', { name: 'Add comment' }).click();
 
     const thread = page.locator('.bn-thread');
     await thread.getByRole('paragraph').first().fill('This is a comment');
     await thread.locator('[data-test="save"]').click();
     await expect(thread.getByText('This is a comment').first()).toBeHidden();
+    await expect(editor.getByText('Hello')).toHaveClass('bn-thread-mark');
 
-    // Check background color changed
     await expect(editor.getByText('Hello')).toHaveCSS(
       'background-color',
-      'rgba(237, 180, 0, 0.4)',
+      /color\(srgb\s+[\d\s.]+\s+\/\s+0\.4\)/,
     );
+
     await editor.first().click();
     await editor.getByText('Hello').click();
 
@@ -184,6 +195,7 @@ test.describe('Doc Comments', () => {
     await thread.getByText('This is an edited comment').first().hover();
     await thread.locator('[data-test="resolve"]').click();
     await expect(thread).toBeHidden();
+
     await expect(editor.getByText('Hello')).toHaveCSS(
       'background-color',
       'rgba(0, 0, 0, 0)',
@@ -191,15 +203,17 @@ test.describe('Doc Comments', () => {
 
     /* Delete the last comment remove the thread */
     await editor.getByText('Hello').selectText();
-    await page.getByRole('button', { name: 'Comment' }).click();
+    await page.getByRole('button', { name: 'Add comment' }).click();
 
     await thread.getByRole('paragraph').first().fill('This is a new comment');
     await thread.locator('[data-test="save"]').click();
+    await expect(editor.getByText('Hello')).toHaveClass('bn-thread-mark');
 
     await expect(editor.getByText('Hello')).toHaveCSS(
       'background-color',
-      'rgba(237, 180, 0, 0.4)',
+      /color\(srgb\s+[\d\s.]+\s+\/\s+0\.4\)/,
     );
+
     await editor.first().click();
     await editor.getByText('Hello').click();
 
@@ -207,6 +221,7 @@ test.describe('Doc Comments', () => {
     await thread.locator('[data-test="moreactions"]').first().click();
     await thread.getByRole('menuitem', { name: 'Delete comment' }).click();
 
+    await expect(editor.getByText('Hello')).not.toHaveClass('bn-thread-mark');
     await expect(editor.getByText('Hello')).toHaveCSS(
       'background-color',
       'rgba(0, 0, 0, 0)',
@@ -249,7 +264,7 @@ test.describe('Doc Comments', () => {
       editor.getByText('Hello, I can edit the document'),
     ).toBeVisible();
     await otherEditor.getByText('Hello').selectText();
-    await otherPage.getByRole('button', { name: 'Comment' }).click();
+    await otherPage.getByRole('button', { name: 'Add comment' }).click();
     const otherThread = otherPage.locator('.bn-thread');
     await otherThread
       .getByRole('paragraph')
@@ -262,11 +277,15 @@ test.describe('Doc Comments', () => {
 
     await expect(otherEditor.getByText('Hello')).toHaveCSS(
       'background-color',
-      'rgba(237, 180, 0, 0.4)',
+      /color\(srgb\s+[\d\s.]+\s+\/\s+0\.4\)/,
     );
 
     // We change the role of the second user to reader
-    await updateRoleUser(page, 'Reader', `user.test@${otherBrowserName}.test`);
+    await updateRoleUser(
+      page,
+      'Reader',
+      process.env[`SIGN_IN_USERNAME_${otherBrowserName.toUpperCase()}`] || '',
+    );
 
     // With the reader role, the second user cannot see comments
     await otherPage.reload();
@@ -280,7 +299,7 @@ test.describe('Doc Comments', () => {
     await expect(otherThread).toBeHidden();
     await otherEditor.getByText('Hello').selectText();
     await expect(
-      otherPage.getByRole('button', { name: 'Comment' }),
+      otherPage.getByRole('button', { name: 'Add comment' }),
     ).toBeHidden();
 
     await otherPage.reload();
@@ -291,13 +310,21 @@ test.describe('Doc Comments', () => {
     // Anonymous user can see and add comments
     await otherPage.getByRole('button', { name: 'Logout' }).click();
 
+    await expect(
+      otherPage
+        .getByRole('button', { name: process.env.SIGN_IN_EL_TRIGGER })
+        .first(),
+    ).toBeVisible({
+      timeout: 10000,
+    });
+
     await otherPage.goto(urlCommentDoc);
 
     await verifyDocName(otherPage, docTitle);
 
     await expect(otherEditor.getByText('Hello')).toHaveCSS(
       'background-color',
-      'rgba(237, 180, 0, 0.4)',
+      /color\(srgb\s+[\d\s.]+\s+\/\s+0\.4\)/,
     );
     await otherEditor.getByText('Hello').click();
     await expect(
@@ -334,7 +361,7 @@ test.describe('Doc Comments', () => {
     // We add a comment in the first document
     const editor1 = await writeInEditor({ page, text: 'Document One' });
     await editor1.getByText('Document One').selectText();
-    await page.getByRole('button', { name: 'Comment' }).click();
+    await page.getByRole('button', { name: 'Add comment' }).click();
 
     const thread1 = page.locator('.bn-thread');
     await thread1.getByRole('paragraph').first().fill('Comment in Doc One');
@@ -343,7 +370,7 @@ test.describe('Doc Comments', () => {
 
     await expect(editor1.getByText('Document One')).toHaveCSS(
       'background-color',
-      'rgba(237, 180, 0, 0.4)',
+      /color\(srgb\s+[\d\s.]+\s+\/\s+0\.4\)/,
     );
 
     await editor1.getByText('Document One').click();
@@ -388,7 +415,7 @@ test.describe('Doc Comments mobile', () => {
     // Checks add react reaction
     const editor = await writeInEditor({ page, text: 'Hello' });
     await editor.getByText('Hello').selectText();
-    await page.getByRole('button', { name: 'Comment' }).click();
+    await page.getByRole('button', { name: 'Add comment' }).click();
 
     const thread = page.locator('.bn-thread');
     await thread.getByRole('paragraph').first().fill('This is a comment');

@@ -29,6 +29,7 @@ def test_api_documents_retrieve_anonymous_public_standalone():
         "abilities": {
             "accesses_manage": False,
             "accesses_view": False,
+            "ai_proxy": False,
             "ai_transform": False,
             "ai_translate": False,
             "attachment_upload": document.link_role == "editor",
@@ -58,6 +59,7 @@ def test_api_documents_retrieve_anonymous_public_standalone():
             "partial_update": document.link_role == "editor",
             "restore": False,
             "retrieve": True,
+            "search": True,
             "tree": True,
             "update": document.link_role == "editor",
             "versions_destroy": False,
@@ -107,6 +109,7 @@ def test_api_documents_retrieve_anonymous_public_parent():
         "abilities": {
             "accesses_manage": False,
             "accesses_view": False,
+            "ai_proxy": False,
             "ai_transform": False,
             "ai_translate": False,
             "attachment_upload": grand_parent.link_role == "editor",
@@ -134,6 +137,7 @@ def test_api_documents_retrieve_anonymous_public_parent():
             "partial_update": grand_parent.link_role == "editor",
             "restore": False,
             "retrieve": True,
+            "search": True,
             "tree": True,
             "update": grand_parent.link_role == "editor",
             "versions_destroy": False,
@@ -215,6 +219,7 @@ def test_api_documents_retrieve_authenticated_unrelated_public_or_authenticated(
         "abilities": {
             "accesses_manage": False,
             "accesses_view": False,
+            "ai_proxy": document.link_role == "editor",
             "ai_transform": document.link_role == "editor",
             "ai_translate": document.link_role == "editor",
             "attachment_upload": document.link_role == "editor",
@@ -243,6 +248,7 @@ def test_api_documents_retrieve_authenticated_unrelated_public_or_authenticated(
             "partial_update": document.link_role == "editor",
             "restore": False,
             "retrieve": True,
+            "search": True,
             "tree": True,
             "update": document.link_role == "editor",
             "versions_destroy": False,
@@ -300,6 +306,7 @@ def test_api_documents_retrieve_authenticated_public_or_authenticated_parent(rea
         "abilities": {
             "accesses_manage": False,
             "accesses_view": False,
+            "ai_proxy": grand_parent.link_role == "editor",
             "ai_transform": grand_parent.link_role == "editor",
             "ai_translate": grand_parent.link_role == "editor",
             "attachment_upload": grand_parent.link_role == "editor",
@@ -326,6 +333,7 @@ def test_api_documents_retrieve_authenticated_public_or_authenticated_parent(rea
             "partial_update": grand_parent.link_role == "editor",
             "restore": False,
             "retrieve": True,
+            "search": True,
             "tree": True,
             "update": grand_parent.link_role == "editor",
             "versions_destroy": False,
@@ -498,6 +506,7 @@ def test_api_documents_retrieve_authenticated_related_parent():
         "abilities": {
             "accesses_manage": access.role in ["administrator", "owner"],
             "accesses_view": True,
+            "ai_proxy": access.role not in ["reader", "commenter"],
             "ai_transform": access.role not in ["reader", "commenter"],
             "ai_translate": access.role not in ["reader", "commenter"],
             "attachment_upload": access.role not in ["reader", "commenter"],
@@ -524,6 +533,7 @@ def test_api_documents_retrieve_authenticated_related_parent():
             "partial_update": access.role not in ["reader", "commenter"],
             "restore": access.role == "owner",
             "retrieve": True,
+            "search": True,
             "tree": True,
             "update": access.role not in ["reader", "commenter"],
             "versions_destroy": access.role in ["administrator", "owner"],
@@ -1057,3 +1067,48 @@ def test_api_documents_retrieve_permanently_deleted_related(role, depth):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Not found."}
+
+
+def test_api_documents_retrieve_without_content():
+    """
+    Test retrieve using without_content query string should remove the content in the response
+    """
+
+    user = factories.UserFactory()
+
+    document = factories.DocumentFactory(creator=user, users=[(user, "owner")])
+
+    client = APIClient()
+    client.force_login(user)
+
+    with mock.patch("core.models.Document.content") as mock_document_content:
+        response = client.get(
+            f"/api/v1.0/documents/{document.id!s}/?without_content=true"
+        )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert "content" not in payload
+    mock_document_content.assert_not_called()
+
+
+def test_api_documents_retrieve_without_content_invalid_value():
+    """
+    Test retrieve using without_content query string but an invalid value
+    should return a 400
+    """
+
+    user = factories.UserFactory()
+
+    document = factories.DocumentFactory(creator=user, users=[(user, "owner")])
+
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.get(
+        f"/api/v1.0/documents/{document.id!s}/?without_content=invalid-value"
+    )
+    assert response.status_code == 400
+
+    assert response.json() == ["Must be a valid boolean."]

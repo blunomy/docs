@@ -9,8 +9,9 @@ import { createReactBlockSpec } from '@blocknote/react';
 import { t } from 'i18next';
 import { useEffect } from 'react';
 
-import { Box, Text } from '@/components';
+import { Box, Icon, Text } from '@/components';
 import { useMediaUrl } from '@/core';
+import { isSafeUrl } from '@/utils/url';
 
 import { loopCheckDocMediaStatus } from '../../api';
 import Loader from '../../assets/loader.svg';
@@ -51,7 +52,6 @@ type UploadLoaderEditor = BlockNoteEditor<
 interface UploadLoaderBlockComponentProps {
   block: UploadLoaderBlockType;
   editor: UploadLoaderEditor;
-  contentRef: (node: HTMLElement | null) => void;
 }
 
 const UploadLoaderBlockComponent = ({
@@ -67,7 +67,7 @@ const UploadLoaderBlockComponent = ({
       block.props.type === 'loading' &&
       isEditable;
 
-    if (!shouldCheckStatus) {
+    if (!shouldCheckStatus || !isSafeUrl(block.props.blockUploadUrl)) {
       return;
     }
 
@@ -125,7 +125,11 @@ const UploadLoaderBlockComponent = ({
       {block.props.type === 'warning' ? (
         <Warning />
       ) : (
-        <Loader style={{ animation: 'spin 1.5s linear infinite' }} />
+        <Icon
+          $theme="brand"
+          $layer="border"
+          icon={<Loader style={{ animation: 'spin 1.5s linear infinite' }} />}
+        />
       )}
       <Text>{block.props.information}</Text>
     </Box>

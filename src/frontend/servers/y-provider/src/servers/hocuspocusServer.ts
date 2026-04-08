@@ -36,10 +36,13 @@ export const hocuspocusServer = new Server({
       return Promise.reject(new Error('Wrong room name: Unauthorized'));
     }
 
-    let canEdit = false;
+    let canEdit;
 
     try {
-      const document = await fetchDocument(documentName, requestHeaders);
+      const document = await fetchDocument(
+        { name: documentName, withoutContent: true },
+        requestHeaders,
+      );
 
       if (!document.abilities.retrieve) {
         logger(

@@ -1,4 +1,5 @@
 import { Modal, ModalSize } from '@gouvfr-lasuite/cunningham-react';
+import { announce } from '@react-aria/live-announcer';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +12,7 @@ import {
   QuickSearchData,
   QuickSearchGroup,
 } from '@/components/quick-search/';
+import { useConfig } from '@/core';
 import { Doc } from '@/docs/doc-management';
 import { User } from '@/features/auth';
 import { useResponsiveStore } from '@/stores';
@@ -57,6 +59,9 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
   const { t } = useTranslation();
   const selectedUsersRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { data: config } = useConfig();
+  const API_USERS_SEARCH_QUERY_MIN_LENGTH =
+    config?.API_USERS_SEARCH_QUERY_MIN_LENGTH || 5;
 
   const { isDesktop } = useResponsiveStore();
 
@@ -76,32 +81,28 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [userQuery, setUserQuery] = useState('');
   const [inputValue, setInputValue] = useState('');
-  const [liveAnnouncement, setLiveAnnouncement] = useState('');
 
   const [listHeight, setListHeight] = useState<string>('400px');
   const canShare = doc.abilities.accesses_manage && isRootDoc;
   const canViewAccesses = doc.abilities.accesses_view;
   const showMemberSection = inputValue === '' && selectedUsers.length === 0;
   const showFooter = selectedUsers.length === 0 && !inputValue;
-  const MIN_CHARACTERS_FOR_SEARCH = 4;
 
   const onSelect = (user: User) => {
     setSelectedUsers((prev) => [...prev, user]);
     setUserQuery('');
     setInputValue('');
 
-    // Announce to screen readers
     const userName = user.full_name || user.email;
-    setLiveAnnouncement(
+    announce(
       t(
         '{{name}} added to invite list. Add more members or press Tab to select role and invite.',
         {
           name: userName,
         },
       ),
+      'polite',
     );
-    // Clear announcement after it's been read
-    setTimeout(() => setLiveAnnouncement(''), 100);
   };
 
   const { data: membersQuery } = useDocAccesses({
@@ -111,7 +112,7 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
   const searchUsersQuery = useUsers(
     { query: userQuery, docId: doc.id },
     {
-      enabled: userQuery?.length > MIN_CHARACTERS_FOR_SEARCH,
+      enabled: userQuery?.length >= API_USERS_SEARCH_QUERY_MIN_LENGTH,
       queryKey: [KEY_LIST_USER, { query: userQuery }],
     },
   );
@@ -129,14 +130,13 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
       const newArray = [...prevState];
       newArray.splice(index, 1);
 
-      // Announce to screen readers
       const userName = row.full_name || row.email;
-      setLiveAnnouncement(
+      announce(
         t('{{name}} removed from invite list', {
           name: userName,
         }),
+        'polite',
       );
-      setTimeout(() => setLiveAnnouncement(''), 100);
 
       return newArray;
     });
@@ -180,7 +180,7 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
         isOpen
         closeOnClickOutside
         data-testid="doc-share-modal"
-        aria-labelledby="doc-share-modal-title"
+        aria-label={t('Share the document')}
         size={isDesktop ? ModalSize.LARGE : ModalSize.FULL}
         aria-modal="true"
         onClose={onClose}
@@ -205,23 +205,12 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
         hideCloseButton
       >
         <ShareModalStyle />
-        {/* Screen reader announcements */}
-        <div
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className="sr-only"
-        >
-          {liveAnnouncement}
-        </div>
         <Box
           $height="auto"
           $maxHeight={canViewAccesses ? modalContentHeight : 'none'}
           $overflow="hidden"
           className="--docs--doc-share-modal noPadding "
           $justify="space-between"
-          role="dialog"
-          aria-label={t('Share modal content')}
         >
           <Box
             $flex={1}
@@ -247,7 +236,9 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
                   />
                 </Box>
               )}
-              {!canViewAccesses && <HorizontalSeparator customPadding="12px" />}
+              {!canViewAccesses && (
+                <HorizontalSeparator $margin={{ vertical: 'sm' }} />
+              )}
             </Box>
 
             <Box data-testid="doc-share-quick-search">
@@ -298,7 +289,7 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
                     />
                   )}
                   {showMemberSection && isRootDoc && (
-                    <Box $padding={{ horizontal: 'base' }}>
+                    <Box $padding={{ horizontal: 'base', top: 'base' }}>
                       <QuickSearchGroupAccessRequest doc={doc} />
                       <QuickSearchGroupInvitation doc={doc} />
                       <QuickSearchGroupMember doc={doc} />
@@ -310,6 +301,7 @@ export const DocShareModal = ({ doc, onClose, isRootDoc = true }: Props) => {
                       searchUsersRawData={searchUsersQuery.data}
                       onSelect={onSelect}
                       userQuery={userQuery}
+                      minLength={API_USERS_SEARCH_QUERY_MIN_LENGTH}
                     />
                   )}
                 </QuickSearch>
@@ -330,14 +322,35 @@ interface QuickSearchInviteInputSectionProps {
   onSelect: (usr: User) => void;
   searchUsersRawData: User[] | undefined;
   userQuery: string;
+  minLength: number;
 }
 
 const QuickSearchInviteInputSection = ({
   onSelect,
   searchUsersRawData,
   userQuery,
+  minLength,
 }: QuickSearchInviteInputSectionProps) => {
   const { t } = useTranslation();
+  const hint = useMemo(() => {
+    if (userQuery.length < minLength) {
+      return t('Type at least {{minLength}} characters to display user names', {
+        minLength,
+      });
+    }
+    if (isValidEmail(userQuery)) {
+      return t('Choose the email');
+    }
+    if (!searchUsersRawData?.length) {
+      return t('No results. Type a full email address to invite someone.');
+    }
+
+    return t('Choose a user');
+  }, [minLength, searchUsersRawData?.length, t, userQuery]);
+
+  useEffect(() => {
+    announce(hint, 'polite');
+  }, [hint]);
 
   const searchUserData: QuickSearchData<User> = useMemo(() => {
     const users = searchUsersRawData || [];
@@ -348,6 +361,7 @@ const QuickSearchInviteInputSection = ({
       email: userQuery,
       short_name: '',
       language: '',
+      is_first_connection: false,
     };
 
     const hasEmailInUsers = users.some(
@@ -355,7 +369,7 @@ const QuickSearchInviteInputSection = ({
     );
 
     return {
-      groupName: t('Search user result'),
+      groupName: hint,
       elements: users,
       endActions:
         isEmail && !hasEmailInUsers
@@ -367,12 +381,12 @@ const QuickSearchInviteInputSection = ({
             ]
           : undefined,
     };
-  }, [onSelect, searchUsersRawData, t, userQuery]);
+  }, [searchUsersRawData, userQuery, hint, onSelect]);
 
   return (
     <Box
       aria-label={t('List search user result card')}
-      $padding={{ horizontal: 'base', bottom: '3xs' }}
+      $padding={{ horizontal: 'base', bottom: '3xs', top: 'base' }}
     >
       <QuickSearchGroup
         group={searchUserData}

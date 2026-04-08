@@ -13,6 +13,32 @@ test.describe('Language', () => {
     await page.goto('/');
   });
 
+  test('it checks theme_customization.translations config', async ({
+    page,
+  }) => {
+    await overrideConfig(page, {
+      theme_customization: {
+        translations: {
+          en: {
+            translation: {
+              Docs: 'MyCustomDocs',
+            },
+          },
+        },
+        header: {
+          logo: {},
+          icon: {
+            withTitle: true,
+          },
+        },
+      },
+    });
+
+    await page.goto('/');
+
+    await expect(page.getByText('MyCustomDocs')).toBeAttached();
+  });
+
   test('checks language switching', async ({ page }) => {
     const header = page.locator('header').first();
     const languagePicker = header.locator('.--docs--language-picker-text');
@@ -49,7 +75,7 @@ test.describe('Language', () => {
 
     await expect(page.locator('[role="menu"]')).toBeVisible();
 
-    const menuItems = page.getByRole('menuitem');
+    const menuItems = page.locator('[role="menuitemradio"]');
     await expect(menuItems.first()).toBeVisible();
 
     await menuItems.first().click();
@@ -90,7 +116,7 @@ test.describe('Language', () => {
     // Helper function to intercept and assert 404 response
     const check404Response = async (expectedDetail: string) => {
       const interceptedBackendResponse = await page.request.get(
-        'http://localhost:8071/api/v1.0/documents/non-existent-doc-uuid/',
+        `${process.env.BASE_API_URL}/documents/non-existent-doc-uuid/`,
       );
 
       // Assert that the intercepted error message is in the expected language

@@ -72,7 +72,7 @@ export const TableContent = () => {
           border: 1px solid ${colorsTokens['brand-100']};
           overflow: hidden;
           border-radius: ${spacingsTokens['3xs']};
-          background: ${colorsTokens['gray-000']};
+          background: var(--c--contextuals--background--surface--primary);
           ${isOpen &&
           css`
             display: flex;
@@ -91,7 +91,7 @@ export const TableContent = () => {
             $height="100%"
             $justify="center"
             $align="center"
-            aria-label={t('Summary')}
+            aria-label={t('Show the table of contents')}
             aria-expanded={isOpen}
             aria-controls="toc-list"
             $css={css`
@@ -218,8 +218,8 @@ const TableContentOpened = ({
           onClick={onClose}
           $justify="center"
           $align="center"
-          aria-label={t('Summary')}
-          aria-expanded="true"
+          aria-label={t('Hide the table of contents')}
+          aria-expanded={true}
           aria-controls="toc-list"
           $css={css`
             transition: none !important;

@@ -13,7 +13,7 @@ export const LeftPanelTargetFilters = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { togglePanel } = useLeftPanelStore();
+  const { closePanel } = useLeftPanelStore();
   const { colorsTokens, spacingsTokens } = useCunninghamTheme();
 
   const target =
@@ -49,8 +49,8 @@ export const LeftPanelTargetFilters = () => {
     return `${pathname}?${params.toString()}`;
   };
 
-  const handleClick = () => {
-    togglePanel();
+  const handleFilterClick = () => {
+    closePanel({ type: 'mobile' });
   };
 
   return (
@@ -70,7 +70,7 @@ export const LeftPanelTargetFilters = () => {
             href={href}
             aria-label={query.label}
             aria-current={isActive ? 'page' : undefined}
-            onClick={handleClick}
+            onClick={handleFilterClick}
             $css={css`
               display: flex;
               align-items: center;

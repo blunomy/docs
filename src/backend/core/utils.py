@@ -1,13 +1,42 @@
 """Utils for the core app."""
 
 import base64
+import logging
 import re
+import time
 from collections import defaultdict
+
+from django.core.cache import cache
+from django.db import models as db
+from django.db.models import Subquery
 
 import pycrdt
 from bs4 import BeautifulSoup
 
-from core import enums
+from core import enums, models
+
+logger = logging.getLogger(__name__)
+
+
+def get_value_by_pattern(data, pattern):
+    """
+    Get all values from keys matching a regex pattern in a dictionary.
+
+    Args:
+        data (dict): Source dictionary to search
+        pattern (str): Regex pattern to match against keys
+
+    Returns:
+        list: List of values for all matching keys, empty list if no matches
+
+    Example:
+        >>> get_value_by_pattern({"title.fr": "Bonjour", "id": 1}, r"^title\\.")
+        ["Bonjour"]
+        >>> get_value_by_pattern({"title.fr": "Bonjour", "title.en": "Hello"}, r"^title\\.")
+        ["Bonjour", "Hello"]
+    """
+    regex = re.compile(pattern)
+    return [value for key, value in data.items() if regex.match(key)]
 
 
 def get_ancestor_to_descendants_map(paths, steplen):
@@ -96,3 +125,46 @@ def extract_attachments(content):
 
     xml_content = base64_yjs_to_xml(content)
     return re.findall(enums.MEDIA_STORAGE_URL_EXTRACT, xml_content)
+
+
+def get_users_sharing_documents_with_cache_key(user):
+    """Generate a unique cache key for each user."""
+    return f"users_sharing_documents_with_{user.id}"
+
+
+def users_sharing_documents_with(user):
+    """
+    Returns a map of users sharing documents with the given user,
+    sorted by last shared date.
+    """
+    start_time = time.time()
+    cache_key = get_users_sharing_documents_with_cache_key(user)
+    cached_result = cache.get(cache_key)
+
+    if cached_result is not None:
+        elapsed = time.time() - start_time
+        logger.info(
+            "users_sharing_documents_with cache hit for user %s (took %.3fs)",
+            user.id,
+            elapsed,
+        )
+        return cached_result
+
+    user_docs_qs = models.DocumentAccess.objects.filter(user=user).values_list(
+        "document_id", flat=True
+    )
+    shared_qs = (
+        models.DocumentAccess.objects.filter(document_id__in=Subquery(user_docs_qs))
+        .exclude(user=user)
+        .values("user")
+        .annotate(last_shared=db.Max("created_at"))
+    )
+    result = {item["user"]: item["last_shared"] for item in shared_qs}
+    cache.set(cache_key, result, 86400)  # Cache for 1 day
+    elapsed = time.time() - start_time
+    logger.info(
+        "users_sharing_documents_with cache miss for user %s (took %.3fs)",
+        user.id,
+        elapsed,
+    )
+    return result

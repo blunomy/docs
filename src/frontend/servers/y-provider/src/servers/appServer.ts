@@ -1,10 +1,8 @@
-// eslint-disable-next-line import/order
-import '../services/sentry';
-
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import expressWebsockets from 'express-ws';
 
+import { CONVERSION_FILE_MAX_SIZE } from '@/env';
 import {
   collaborationResetConnectionsHandler,
   collaborationWSHandler,
@@ -14,6 +12,8 @@ import {
 import { corsMiddleware, httpSecurity, wsSecurity } from '@/middlewares';
 import { routes } from '@/routes';
 import { logger } from '@/utils';
+
+import '../services/sentry';
 
 /**
  * init the collaboration server.
@@ -55,7 +55,7 @@ export const initApp = () => {
     routes.CONVERT,
     httpSecurity,
     express.raw({
-      limit: '500kb',
+      limit: CONVERSION_FILE_MAX_SIZE,
       type: '*/*',
     }),
     convertHandler,

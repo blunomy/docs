@@ -7,6 +7,7 @@ from base64 import b64decode
 from os.path import splitext
 
 from django.conf import settings
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils.functional import lazy
 from django.utils.text import slugify
@@ -32,8 +33,21 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.User
-        fields = ["id", "email", "full_name", "short_name", "language"]
-        read_only_fields = ["id", "email", "full_name", "short_name"]
+        fields = [
+            "id",
+            "email",
+            "full_name",
+            "short_name",
+            "language",
+            "is_first_connection",
+        ]
+        read_only_fields = [
+            "id",
+            "email",
+            "full_name",
+            "short_name",
+            "is_first_connection",
+        ]
 
     def get_full_name(self, instance):
         """Return the full name of the user."""
@@ -225,8 +239,16 @@ class DocumentSerializer(ListDocumentSerializer):
         fields = super().get_fields()
 
         request = self.context.get("request")
-        if request and request.method == "POST":
-            fields["id"].read_only = False
+        if request:
+            if request.method == "POST":
+                fields["id"].read_only = False
+            if (
+                serializers.BooleanField().to_internal_value(
+                    request.query_params.get("without_content", False)
+                )
+                is True
+            ):
+                del fields["content"]
 
         return fields
 
@@ -278,6 +300,15 @@ class DocumentSerializer(ListDocumentSerializer):
             )
 
         return file
+
+    def update(self, instance, validated_data):
+        """
+        When no data is sent on the update, skip making the update in the database and return
+        directly the instance unchanged.
+        """
+        if not validated_data:
+            return instance  # No data provided, skip the update
+        return super().update(instance, validated_data)
 
     def save(self, **kwargs):
         """
@@ -475,11 +506,19 @@ class ServerCreateDocumentSerializer(serializers.Serializer):
                 {"content": ["Could not convert content"]}
             ) from err
 
-        document = models.Document.add_root(
-            title=validated_data["title"],
-            content=document_content,
-            creator=user,
-        )
+        with transaction.atomic():
+            # locks the table to ensure safe concurrent access
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f'LOCK TABLE "{models.Document._meta.db_table}" '  # noqa: SLF001
+                    "IN SHARE ROW EXCLUSIVE MODE;"
+                )
+
+            document = models.Document.add_root(
+                title=validated_data["title"],
+                content=document_content,
+                creator=user,
+            )
 
         if user:
             # Associate the document with the pre-existing user
@@ -591,10 +630,13 @@ class LinkDocumentSerializer(serializers.ModelSerializer):
 class DocumentDuplicationSerializer(serializers.Serializer):
     """
     Serializer for duplicating a document.
-    Allows specifying whether to keep access permissions.
+    Allows specifying whether to keep access permissions,
+    and whether to duplicate descendant documents as well
+    (deep copy) or not (shallow copy).
     """
 
     with_accesses = serializers.BooleanField(default=False)
+    with_descendants = serializers.BooleanField(default=False)
 
     def create(self, validated_data):
         """
@@ -980,8 +1022,5 @@ class ThreadSerializer(serializers.ModelSerializer):
 class SearchDocumentSerializer(serializers.Serializer):
     """Serializer for fulltext search requests through Find application"""
 
-    q = serializers.CharField(required=True, allow_blank=False, trim_whitespace=True)
-    page_size = serializers.IntegerField(
-        required=False, min_value=1, max_value=50, default=20
-    )
-    page = serializers.IntegerField(required=False, min_value=1, default=1)
+    q = serializers.CharField(required=True, allow_blank=True, trim_whitespace=True)
+    path = serializers.CharField(required=False, allow_blank=False)

@@ -1,26 +1,33 @@
-import { DndContext, DragOverlay, Modifier } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  Modifier,
+  UniqueIdentifier,
+} from '@dnd-kit/core';
 import { getEventCoordinates } from '@dnd-kit/utilities';
 import { useModal } from '@gouvfr-lasuite/cunningham-react';
 import { TreeViewMoveModeEnum } from '@gouvfr-lasuite/ui-kit';
-import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import dynamic from 'next/dynamic';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { AlertModal, Card, Text } from '@/components';
-import { Doc, KEY_LIST_DOC, useTrans } from '@/docs/doc-management';
-import {
-  getDocAccesses,
-  getDocInvitations,
-  useDeleteDocAccess,
-  useDeleteDocInvitation,
-} from '@/docs/doc-share';
-import { useMoveDoc } from '@/docs/doc-tree';
+import { Card, Text } from '@/components';
+import { Doc, useMoveDoc, useTrans } from '@/docs/doc-management';
+import { useResponsiveStore } from '@/stores/useResponsiveStore';
 
 import { DocDragEndData, useDragAndDrop } from '../hooks/useDragAndDrop';
 
 import { DocsGridItem } from './DocsGridItem';
 import { Draggable } from './Draggable';
 import { Droppable } from './Droppable';
+
+const ModalConfirmationMoveDoc = dynamic(
+  () =>
+    import('./ModalConfimationMoveDoc').then((mod) => ({
+      default: mod.ModalConfirmationMoveDoc,
+    })),
+  { ssr: false },
+);
 
 const snapToTopLeft: Modifier = ({
   activatorEvent,
@@ -54,11 +61,8 @@ type DocGridContentListProps = {
 export const DraggableDocGridContentList = ({
   docs,
 }: DocGridContentListProps) => {
-  const { mutateAsync: handleMove, isError } = useMoveDoc();
-  const queryClient = useQueryClient();
+  const { mutateAsync: handleMove, isError } = useMoveDoc(true);
   const modalConfirmation = useModal();
-  const { mutate: handleDeleteInvitation } = useDeleteDocInvitation();
-  const { mutate: handleDeleteAccess } = useDeleteDocAccess();
   const onDragData = useRef<DocDragEndData | null>(null);
   const { untitledDocument } = useTrans();
 
@@ -81,35 +85,6 @@ export const DraggableDocGridContentList = ({
         targetDocumentId,
         position: TreeViewMoveModeEnum.FIRST_CHILD,
       });
-
-      void queryClient.invalidateQueries({
-        queryKey: [KEY_LIST_DOC],
-      });
-      const accesses = await getDocAccesses({
-        docId: sourceDocumentId,
-      });
-
-      const invitationsResponse = await getDocInvitations({
-        docId: sourceDocumentId,
-        page: 1,
-      });
-
-      const invitations = invitationsResponse.results;
-
-      await Promise.all([
-        ...invitations.map((invitation) =>
-          handleDeleteInvitation({
-            docId: sourceDocumentId,
-            invitationId: invitation.id,
-          }),
-        ),
-        ...accesses.map((access) =>
-          handleDeleteAccess({
-            docId: sourceDocumentId,
-            accessId: access.id,
-          }),
-        ),
-      ]);
     } finally {
       onDragData.current = null;
     }
@@ -137,6 +112,59 @@ export const DraggableDocGridContentList = ({
 
   const { t } = useTranslation();
 
+  const dndAccessibility = useMemo(
+    () => ({
+      screenReaderInstructions: {
+        draggable: t(
+          'To pick up a draggable item, press space or enter. While dragging, use the arrow keys to move the item. Press space or enter again to drop the item in its new position, or press escape to cancel.',
+        ),
+      },
+      announcements: {
+        onDragStart({ active }: { active: { id: UniqueIdentifier } }) {
+          return t('Picked up document {{id}}.', { id: active.id });
+        },
+        onDragOver({
+          active,
+          over,
+        }: {
+          active: { id: UniqueIdentifier };
+          over: { id: UniqueIdentifier } | null;
+        }) {
+          if (over) {
+            return t('Document {{activeId}} is over document {{overId}}.', {
+              activeId: active.id,
+              overId: over.id,
+            });
+          }
+          return t('Document {{id}} is no longer over a droppable area.', {
+            id: active.id,
+          });
+        },
+        onDragEnd({
+          active,
+          over,
+        }: {
+          active: { id: UniqueIdentifier };
+          over: { id: UniqueIdentifier } | null;
+        }) {
+          if (over) {
+            return t(
+              'Document {{activeId}} was dropped over document {{overId}}.',
+              { activeId: active.id, overId: over.id },
+            );
+          }
+          return t('Document {{id}} was dropped.', { id: active.id });
+        },
+        onDragCancel({ active }: { active: { id: UniqueIdentifier } }) {
+          return t('Dragging was cancelled. Document {{id}} was dropped.', {
+            id: active.id,
+          });
+        },
+      },
+    }),
+    [t],
+  );
+
   const overlayText = useMemo(() => {
     if (!canDrag) {
       return t('You must be the owner to move the document');
@@ -151,9 +179,24 @@ export const DraggableDocGridContentList = ({
   const cannotMoveDoc =
     !canDrag || (canDrop !== undefined && !canDrop) || isError;
 
-  if (docs.length === 0) {
-    return null;
-  }
+  const [isDraggableDisabled, setIsDraggableDisabled] = useState(false);
+
+  useEffect(() => {
+    const checkModal = () => {
+      const modalOpen = document.querySelector('[role="dialog"]');
+      setIsDraggableDisabled(!!modalOpen);
+    };
+
+    checkModal();
+
+    const observer = new MutationObserver(checkModal);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <>
@@ -162,6 +205,7 @@ export const DraggableDocGridContentList = ({
         modifiers={[snapToTopLeft]}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        accessibility={dndAccessibility}
       >
         {docs.map((doc) => (
           <DraggableDocGridItem
@@ -170,6 +214,7 @@ export const DraggableDocGridContentList = ({
             dragMode={!!selectedDoc}
             canDrag={!!canDrag}
             updateCanDrop={updateCanDrop}
+            disabled={isDraggableDisabled}
           />
         ))}
         <DragOverlay dropAnimation={null}>
@@ -190,25 +235,13 @@ export const DraggableDocGridContentList = ({
         </DragOverlay>
       </DndContext>
       {modalConfirmation.isOpen && (
-        <AlertModal
-          {...modalConfirmation}
-          title={t('Move document')}
-          description={
-            <Text $display="inline">
-              <Trans
-                i18nKey="By moving this document to <strong>{{targetDocumentTitle}}</strong>, it will lose its current access rights and inherit the permissions of that document. <strong>This access change cannot be undone.</strong>"
-                values={{
-                  targetDocumentTitle:
-                    onDragData.current?.target.title ?? untitledDocument,
-                }}
-                components={{ strong: <strong /> }}
-              />
-            </Text>
+        <ModalConfirmationMoveDoc
+          isOpen={modalConfirmation.isOpen}
+          onClose={modalConfirmation.onClose}
+          onConfirm={handleMoveDoc}
+          targetDocumentTitle={
+            onDragData.current?.target.title || untitledDocument
           }
-          confirmLabel={t('Move')}
-          onConfirm={() => {
-            void handleMoveDoc();
-          }}
         />
       )}
     </>
@@ -216,6 +249,7 @@ export const DraggableDocGridContentList = ({
 };
 
 interface DraggableDocGridItemProps {
+  disabled: boolean;
   doc: Doc;
   dragMode: boolean;
   canDrag: boolean;
@@ -223,6 +257,7 @@ interface DraggableDocGridItemProps {
 }
 
 export const DraggableDocGridItem = ({
+  disabled,
   doc,
   dragMode,
   canDrag,
@@ -238,7 +273,7 @@ export const DraggableDocGridItem = ({
       id={doc.id}
       data={doc}
     >
-      <Draggable id={doc.id} data={doc}>
+      <Draggable id={doc.id} data={doc} disabled={disabled}>
         <DocsGridItem dragMode={dragMode} doc={doc} />
       </Draggable>
     </Droppable>
@@ -246,8 +281,14 @@ export const DraggableDocGridItem = ({
 };
 
 export const DocGridContentList = ({ docs }: DocGridContentListProps) => {
+  const { isDesktop } = useResponsiveStore();
+
   if (docs.length === 0) {
     return null;
+  }
+
+  if (isDesktop) {
+    return <DraggableDocGridContentList docs={docs} />;
   }
 
   return docs.map((doc) => (

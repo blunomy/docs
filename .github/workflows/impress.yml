@@ -8,6 +8,9 @@ on:
     branches:
       - "*"
 
+permissions:
+  contents: read
+
 jobs:
   install-dependencies:
     uses: ./.github/workflows/dependencies.yml
@@ -19,7 +22,7 @@ jobs:
     if: github.event_name == 'pull_request' # Makes sense only for pull requests
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: show
@@ -27,7 +30,7 @@ jobs:
       - name: Enforce absence of print statements in code
         if: always()
         run: |
-          ! git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- . ':(exclude)**/impress.yml' | grep "print("
+          ! git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- src/backend ':(exclude)**/impress.yml' | grep "print("
       - name: Check absence of fixup commits
         if: always()
         run: |
@@ -46,7 +49,7 @@ jobs:
       github.event_name == 'pull_request'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 50
       - name: Check that the CHANGELOG has been modified in the current branch
@@ -56,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Check CHANGELOG max line length
         run: |
           max_line_length=$(cat CHANGELOG.md | grep -Ev "^\[.*\]: https://github.com" | wc -L)
@@ -70,7 +73,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install codespell
         run: pip install --user codespell
       - name: Check for typos
@@ -92,9 +95,9 @@ jobs:
         working-directory: src/backend
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13.3"
           cache: "pip"
@@ -146,7 +149,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Create writable /data
         run: |
@@ -154,7 +157,7 @@ jobs:
           sudo mkdir -p /data/static
 
       - name: Restore the mail templates
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: mail-templates
         with:
           path: "src/backend/core/templates/mail"
@@ -190,7 +193,7 @@ jobs:
             mc version enable impress/impress-media-storage"
 
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13.3"
           cache: "pip"
@@ -202,7 +205,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gettext pandoc shared-mime-info
-          sudo wget https://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types -O /etc/mime.types
+          sudo wget https://raw.githubusercontent.com/suitenumerique/django-lasuite/refs/heads/main/assets/conf/mime.types -O /etc/mime.types
 
       - name: Generate a MO file from strings extracted from the project
         run: python manage.py compilemessages

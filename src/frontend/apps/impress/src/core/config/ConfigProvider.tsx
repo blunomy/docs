@@ -12,7 +12,6 @@ import {
   useSynchronizedLanguage,
 } from '@/features/language';
 import { useAnalytics } from '@/libs';
-import { CrispAnalytic, PostHogAnalytic } from '@/services';
 import { useSentryStore } from '@/stores/useSentryStore';
 
 import { useConfig } from './api/useConfig';
@@ -27,6 +26,7 @@ export const ConfigProvider = ({ children }: PropsWithChildren) => {
   const { AnalyticsProvider } = useAnalytics();
   const { i18n } = useTranslation();
   const languageSynchronized = useRef(false);
+  const favicon = conf?.theme_customization?.favicon;
 
   useEffect(() => {
     if (!user || languageSynchronized.current) {
@@ -70,7 +70,9 @@ export const ConfigProvider = ({ children }: PropsWithChildren) => {
       return;
     }
 
-    new PostHogAnalytic(conf.POSTHOG_KEY);
+    void import('@/services').then(({ PostHogAnalytic }) => {
+      new PostHogAnalytic(conf.POSTHOG_KEY);
+    });
   }, [conf?.POSTHOG_KEY]);
 
   useEffect(() => {
@@ -78,7 +80,9 @@ export const ConfigProvider = ({ children }: PropsWithChildren) => {
       return;
     }
 
-    new CrispAnalytic({ websiteId: conf.CRISP_WEBSITE_ID });
+    void import('@/services').then(({ CrispAnalytic }) => {
+      new CrispAnalytic({ websiteId: conf.CRISP_WEBSITE_ID });
+    });
   }, [conf?.CRISP_WEBSITE_ID]);
 
   if (!conf) {
@@ -99,6 +103,25 @@ export const ConfigProvider = ({ children }: PropsWithChildren) => {
       {conf?.FRONTEND_JS_URL && (
         <Script src={conf?.FRONTEND_JS_URL} strategy="afterInteractive" />
       )}
+      {favicon?.light.href && (
+        <Head>
+          <link
+            rel="icon"
+            media="(prefers-color-scheme: light)"
+            {...favicon.light}
+          />
+        </Head>
+      )}
+      {favicon?.dark.href && (
+        <Head>
+          <link
+            rel="icon"
+            media="(prefers-color-scheme: dark)"
+            {...favicon.dark}
+          />
+        </Head>
+      )}
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       <AnalyticsProvider>{children}</AnalyticsProvider>
     </>
   );

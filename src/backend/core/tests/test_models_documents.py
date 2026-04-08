@@ -155,6 +155,7 @@ def test_models_documents_get_abilities_forbidden(
     expected_abilities = {
         "accesses_manage": False,
         "accesses_view": False,
+        "ai_proxy": False,
         "ai_transform": False,
         "ai_translate": False,
         "attachment_upload": False,
@@ -188,6 +189,7 @@ def test_models_documents_get_abilities_forbidden(
         "versions_destroy": False,
         "versions_list": False,
         "versions_retrieve": False,
+        "search": False,
     }
     nb_queries = 1 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
@@ -220,6 +222,7 @@ def test_models_documents_get_abilities_reader(
     expected_abilities = {
         "accesses_manage": False,
         "accesses_view": False,
+        "ai_proxy": False,
         "ai_transform": False,
         "ai_translate": False,
         "attachment_upload": False,
@@ -253,6 +256,7 @@ def test_models_documents_get_abilities_reader(
         "versions_destroy": False,
         "versions_list": False,
         "versions_retrieve": False,
+        "search": True,
     }
     nb_queries = 1 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
@@ -290,6 +294,7 @@ def test_models_documents_get_abilities_commenter(
     expected_abilities = {
         "accesses_manage": False,
         "accesses_view": False,
+        "ai_proxy": False,
         "ai_transform": False,
         "ai_translate": False,
         "attachment_upload": False,
@@ -323,6 +328,7 @@ def test_models_documents_get_abilities_commenter(
         "versions_destroy": False,
         "versions_list": False,
         "versions_retrieve": False,
+        "search": True,
     }
     nb_queries = 1 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
@@ -357,6 +363,7 @@ def test_models_documents_get_abilities_editor(
     expected_abilities = {
         "accesses_manage": False,
         "accesses_view": False,
+        "ai_proxy": is_authenticated,
         "ai_transform": is_authenticated,
         "ai_translate": is_authenticated,
         "attachment_upload": True,
@@ -390,6 +397,7 @@ def test_models_documents_get_abilities_editor(
         "versions_destroy": False,
         "versions_list": False,
         "versions_retrieve": False,
+        "search": True,
     }
     nb_queries = 1 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
@@ -413,6 +421,7 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
     expected_abilities = {
         "accesses_manage": True,
         "accesses_view": True,
+        "ai_proxy": True,
         "ai_transform": True,
         "ai_translate": True,
         "attachment_upload": True,
@@ -446,6 +455,7 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
         "versions_destroy": True,
         "versions_list": True,
         "versions_retrieve": True,
+        "search": True,
     }
     with django_assert_num_queries(1):
         assert document.get_abilities(user) == expected_abilities
@@ -455,6 +465,7 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
     assert document.get_abilities(user) == {
         "accesses_manage": False,
         "accesses_view": False,
+        "ai_proxy": False,
         "ai_transform": False,
         "ai_translate": False,
         "attachment_upload": False,
@@ -488,6 +499,7 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
         "versions_destroy": False,
         "versions_list": False,
         "versions_retrieve": False,
+        "search": False,
     }
 
 
@@ -501,6 +513,7 @@ def test_models_documents_get_abilities_administrator(django_assert_num_queries)
     expected_abilities = {
         "accesses_manage": True,
         "accesses_view": True,
+        "ai_proxy": True,
         "ai_transform": True,
         "ai_translate": True,
         "attachment_upload": True,
@@ -534,6 +547,7 @@ def test_models_documents_get_abilities_administrator(django_assert_num_queries)
         "versions_destroy": True,
         "versions_list": True,
         "versions_retrieve": True,
+        "search": True,
     }
     with django_assert_num_queries(1):
         assert document.get_abilities(user) == expected_abilities
@@ -557,6 +571,7 @@ def test_models_documents_get_abilities_editor_user(django_assert_num_queries):
     expected_abilities = {
         "accesses_manage": False,
         "accesses_view": True,
+        "ai_proxy": True,
         "ai_transform": True,
         "ai_translate": True,
         "attachment_upload": True,
@@ -590,6 +605,7 @@ def test_models_documents_get_abilities_editor_user(django_assert_num_queries):
         "versions_destroy": False,
         "versions_list": True,
         "versions_retrieve": True,
+        "search": True,
     }
     with django_assert_num_queries(1):
         assert document.get_abilities(user) == expected_abilities
@@ -620,6 +636,7 @@ def test_models_documents_get_abilities_reader_user(
         "accesses_view": True,
         # If you get your editor rights from the link role and not your access role
         # You should not access AI if it's restricted to users with specific access
+        "ai_proxy": access_from_link and ai_access_setting != "restricted",
         "ai_transform": access_from_link and ai_access_setting != "restricted",
         "ai_translate": access_from_link and ai_access_setting != "restricted",
         "attachment_upload": access_from_link,
@@ -654,6 +671,7 @@ def test_models_documents_get_abilities_reader_user(
         "versions_destroy": False,
         "versions_list": True,
         "versions_retrieve": True,
+        "search": True,
     }
 
     with override_settings(AI_ALLOW_REACH_FROM=ai_access_setting):
@@ -686,6 +704,7 @@ def test_models_documents_get_abilities_commenter_user(
         "accesses_view": True,
         # If you get your editor rights from the link role and not your access role
         # You should not access AI if it's restricted to users with specific access
+        "ai_proxy": access_from_link and ai_access_setting != "restricted",
         "ai_transform": access_from_link and ai_access_setting != "restricted",
         "ai_translate": access_from_link and ai_access_setting != "restricted",
         "attachment_upload": access_from_link,
@@ -719,6 +738,7 @@ def test_models_documents_get_abilities_commenter_user(
         "versions_destroy": False,
         "versions_list": True,
         "versions_retrieve": True,
+        "search": True,
     }
 
     with override_settings(AI_ALLOW_REACH_FROM=ai_access_setting):
@@ -747,6 +767,7 @@ def test_models_documents_get_abilities_preset_role(django_assert_num_queries):
     assert abilities == {
         "accesses_manage": False,
         "accesses_view": True,
+        "ai_proxy": False,
         "ai_transform": False,
         "ai_translate": False,
         "attachment_upload": False,
@@ -780,6 +801,7 @@ def test_models_documents_get_abilities_preset_role(django_assert_num_queries):
         "versions_destroy": False,
         "versions_list": True,
         "versions_retrieve": True,
+        "search": True,
     }
 
 
@@ -878,6 +900,7 @@ def test_models_document_get_abilities_ai_access_authenticated(is_authenticated,
     document = factories.DocumentFactory(link_reach=reach, link_role="editor")
 
     abilities = document.get_abilities(user)
+    assert abilities["ai_proxy"] is True
     assert abilities["ai_transform"] is True
     assert abilities["ai_translate"] is True
 
@@ -897,6 +920,7 @@ def test_models_document_get_abilities_ai_access_public(is_authenticated, reach)
     document = factories.DocumentFactory(link_reach=reach, link_role="editor")
 
     abilities = document.get_abilities(user)
+    assert abilities["ai_proxy"] == is_authenticated
     assert abilities["ai_transform"] == is_authenticated
     assert abilities["ai_translate"] == is_authenticated
 
@@ -1021,7 +1045,10 @@ def test_models_documents__email_invitation__success():
         f"Test Sender (sender@example.com) invited you with the role &quot;editor&quot; "
         f"on the following document: {document.title}" in email_content
     )
-    assert f"docs/{document.id}/" in email_content
+    assert (
+        f"docs/{document.id}/?utm_source=docssharelink&amp;utm_campaign={document.id}"
+        in email_content
+    )
 
 
 @pytest.mark.parametrize(
@@ -1051,10 +1078,18 @@ def test_models_documents__email_invitation__url_app_param(email_url_app):
 
         # Determine expected domain
         if email_url_app:
-            assert f"https://test-example.com/docs/{document.id}/" in email_content
+            expected_url = (
+                f"https://test-example.com/docs/{document.id}/"
+                f"?utm_source=docssharelink&amp;utm_campaign={document.id}"
+            )
+            assert expected_url in email_content
         else:
             # Default Site domain is example.com
-            assert f"example.com/docs/{document.id}/" in email_content
+            expected_url = (
+                f"example.com/docs/{document.id}/"
+                f"?utm_source=docssharelink&amp;utm_campaign={document.id}"
+            )
+            assert expected_url in email_content
 
 
 def test_models_documents__email_invitation__success_empty_title():
@@ -1085,7 +1120,10 @@ def test_models_documents__email_invitation__success_empty_title():
         "Test Sender (sender@example.com) invited you with the role &quot;editor&quot; "
         "on the following document: Untitled Document" in email_content
     )
-    assert f"docs/{document.id}/" in email_content
+    assert (
+        f"docs/{document.id}/?utm_source=docssharelink&amp;utm_campaign={document.id}"
+        in email_content
+    )
 
 
 def test_models_documents__email_invitation__success_fr():
@@ -1120,7 +1158,10 @@ def test_models_documents__email_invitation__success_fr():
         f"Test Sender2 (sender2@example.com) vous a invité avec le rôle &quot;propriétaire&quot; "
         f"sur le document suivant : {document.title}" in email_content
     )
-    assert f"docs/{document.id}/" in email_content
+    assert (
+        f"docs/{document.id}/?utm_source=docssharelink&amp;utm_campaign={document.id}"
+        in email_content
+    )
 
 
 @mock.patch(

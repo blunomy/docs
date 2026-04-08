@@ -19,9 +19,14 @@ pytestmark = pytest.mark.django_db
 
 
 @override_settings(
+    AI_BOT={"name": "Test Bot", "color": "#000000"},
     AI_FEATURE_ENABLED=False,
+    AI_FEATURE_BLOCKNOTE_ENABLED=False,
+    AI_FEATURE_LEGACY_ENABLED=False,
+    API_USERS_SEARCH_QUERY_MIN_LENGTH=6,
     COLLABORATION_WS_URL="http://testcollab/",
     COLLABORATION_WS_NOT_CONNECTED_READY_ONLY=True,
+    CONVERSION_UPLOAD_ENABLED=False,
     CRISP_WEBSITE_ID="123",
     FRONTEND_CSS_URL="http://testcss/",
     FRONTEND_JS_URL="http://testjs/",
@@ -43,11 +48,16 @@ def test_api_config(is_authenticated):
     response = client.get("/api/v1.0/config/")
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
+        "AI_BOT": {"name": "Test Bot", "color": "#000000"},
         "AI_FEATURE_ENABLED": False,
+        "AI_FEATURE_BLOCKNOTE_ENABLED": False,
+        "AI_FEATURE_LEGACY_ENABLED": False,
+        "API_USERS_SEARCH_QUERY_MIN_LENGTH": 6,
         "COLLABORATION_WS_URL": "http://testcollab/",
         "COLLABORATION_WS_NOT_CONNECTED_READY_ONLY": True,
         "CONVERSION_FILE_EXTENSIONS_ALLOWED": [".docx", ".md"],
         "CONVERSION_FILE_MAX_SIZE": 20971520,
+        "CONVERSION_UPLOAD_ENABLED": False,
         "CRISP_WEBSITE_ID": "123",
         "ENVIRONMENT": "test",
         "FRONTEND_CSS_URL": "http://testcss/",

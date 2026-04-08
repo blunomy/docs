@@ -7,22 +7,21 @@ import { useConfig } from '@/core/config';
 import { useCunninghamTheme } from '@/cunningham';
 import { ButtonLogin } from '@/features/auth';
 import { LanguagePicker } from '@/features/language';
+import { LeftPanelToggleMobile } from '@/features/left-panel';
 import { useResponsiveStore } from '@/stores';
 
 import { HEADER_HEIGHT } from '../conf';
 
-import { ButtonTogglePanel } from './ButtonTogglePanel';
 import { Title } from './Title';
 import { Waffle } from './Waffle';
 
 export const Header = () => {
   const { t } = useTranslation();
   const { data: config } = useConfig();
-  const { spacingsTokens, componentTokens } = useCunninghamTheme();
+  const { spacingsTokens } = useCunninghamTheme();
   const { isDesktop } = useResponsiveStore();
 
-  const icon =
-    config?.theme_customization?.header?.icon || componentTokens.icon;
+  const icon = config?.theme_customization?.header?.icon;
 
   return (
     <>
@@ -47,7 +46,7 @@ export const Header = () => {
             var(--c--contextuals--border--surface--primary);
         `}
       >
-        {!isDesktop && <ButtonTogglePanel />}
+        {!isDesktop && <LeftPanelToggleMobile />}
         <StyledLink
           href="/"
           data-testid="header-logo-link"
@@ -68,19 +67,19 @@ export const Header = () => {
             $height="fit-content"
             $margin={{ top: 'auto' }}
           >
-            <Image
-              data-testid="header-icon-docs"
-              src={icon.src || ''}
-              alt=""
-              width={0}
-              height={0}
-              style={{
-                width: icon.width,
-                height: icon.height,
-              }}
-              priority
+            {icon && (
+              <Image
+                data-testid="header-icon-docs"
+                width={0}
+                height={0}
+                priority
+                {...(({ withTitle: _, ...rest }) => rest)(icon)}
+              />
+            )}
+            <Title
+              headingLevel="h1"
+              className={icon?.withTitle ? undefined : 'sr-only'}
             />
-            <Title headingLevel="h1" aria-hidden="true" />
           </Box>
         </StyledLink>
         {!isDesktop ? (

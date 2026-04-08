@@ -1,25 +1,46 @@
 import { useQuery } from '@tanstack/react-query';
 import { Resource } from 'i18next';
+import Image from 'next/image';
+import { LinkHTMLAttributes } from 'react';
 
 import { APIError, errorCauses, fetchAPI } from '@/api';
 import { Theme } from '@/cunningham/';
 import { FooterType } from '@/features/footer';
 import { HeaderType, WaffleType } from '@/features/header';
-import { PostHogConf } from '@/services';
+import type { PostHogConf } from '@/services';
+
+type Imagetype = React.ComponentProps<typeof Image>;
 
 interface ThemeCustomization {
+  favicon?: {
+    light: LinkHTMLAttributes<HTMLLinkElement>;
+    dark: LinkHTMLAttributes<HTMLLinkElement>;
+  };
+  onboarding?: {
+    enabled: true;
+    learn_more_url?: string;
+  };
   footer?: FooterType;
+  home: {
+    'with-proconnect'?: boolean;
+    'icon-banner'?: Imagetype;
+  };
   translations?: Resource;
   header?: HeaderType;
   waffle?: WaffleType;
 }
 
 export interface ConfigResponse {
+  AI_BOT: { name: string; color: string };
   AI_FEATURE_ENABLED?: boolean;
+  AI_FEATURE_BLOCKNOTE_ENABLED?: boolean;
+  AI_FEATURE_LEGACY_ENABLED?: boolean;
+  API_USERS_SEARCH_QUERY_MIN_LENGTH?: number;
   COLLABORATION_WS_URL?: string;
   COLLABORATION_WS_NOT_CONNECTED_READY_ONLY?: boolean;
   CONVERSION_FILE_EXTENSIONS_ALLOWED: string[];
   CONVERSION_FILE_MAX_SIZE: number;
+  CONVERSION_UPLOAD_ENABLED?: boolean;
   CRISP_WEBSITE_ID?: string;
   ENVIRONMENT: string;
   FRONTEND_CSS_URL?: string;

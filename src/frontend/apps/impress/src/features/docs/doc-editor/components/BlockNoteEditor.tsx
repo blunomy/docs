@@ -8,7 +8,7 @@ import {
 } from '@blocknote/core';
 import { CommentsExtension } from '@blocknote/core/comments';
 import '@blocknote/core/fonts/inter.css';
-import * as locales from '@blocknote/core/locales';
+import * as localesBN from '@blocknote/core/locales';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import { useCreateBlockNote } from '@blocknote/react';
@@ -20,10 +20,13 @@ import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 
 import { Box, TextErrors } from '@/components';
+import { useConfig } from '@/core';
 import { useCunninghamTheme } from '@/cunningham';
 import { Doc, useProviderStore } from '@/docs/doc-management';
 import { avatarUrlFromName, useAuth } from '@/features/auth';
+import { useAnalytics } from '@/libs/Analytics';
 
+import { AI_FEATURE_FLAG, DEFAULT_LOCALE } from '../conf';
 import {
   useHeadings,
   useSaveDoc,
@@ -36,6 +39,7 @@ import { cssEditor } from '../styles';
 import { DocsBlockNoteEditor } from '../types';
 import { randomColor } from '../utils';
 
+import BlockNoteAI from './AI';
 import { BlockNoteSuggestionMenu } from './BlockNoteSuggestionMenu';
 import { BlockNoteToolbar } from './BlockNoteToolBar/BlockNoteToolbar';
 import { cssComments, useComments } from './comments/';
@@ -45,13 +49,17 @@ import {
   PdfBlock,
   UploadLoaderBlock,
 } from './custom-blocks';
+const AIMenu = BlockNoteAI?.AIMenu;
+const AIMenuController = BlockNoteAI?.AIMenuController;
+const useAI = BlockNoteAI?.useAI;
+const localesBNAI = BlockNoteAI?.localesAI || {};
 import {
   InterlinkingLinkInlineContent,
   InterlinkingSearchInlineContent,
 } from './custom-inline-content';
 import XLMultiColumn from './xl-multi-column';
 
-const multiColumnLocales = XLMultiColumn?.locales;
+const localesBNMultiColumn = XLMultiColumn?.locales;
 const withMultiColumn = XLMultiColumn?.withMultiColumn;
 
 const baseBlockNoteSchema = withPageBreak(
@@ -83,7 +91,6 @@ interface BlockNoteEditorProps {
 export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
   const { user } = useAuth();
   const { setEditor } = useEditorStore();
-  const { t } = useTranslation();
   const { themeTokens } = useCunninghamTheme();
   const { isSynced: isConnectedToCollabServer } = useProviderStore();
   const refEditorContainer = useRef<HTMLDivElement>(null);
@@ -92,13 +99,32 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
   const showComments = canSeeComment;
 
   useSaveDoc(doc.id, provider.document, isConnectedToCollabServer);
-  const { i18n } = useTranslation();
-  let lang = i18n.resolvedLanguage;
-  if (!lang || !(lang in locales)) {
-    lang = 'en';
-  }
+  const { i18n, t } = useTranslation();
+  const langLocalesBN =
+    !i18n.resolvedLanguage || !(i18n.resolvedLanguage in localesBN)
+      ? DEFAULT_LOCALE
+      : i18n.resolvedLanguage;
+  const langLocalesBNMultiColumn =
+    !i18n.resolvedLanguage ||
+    !localesBNMultiColumn ||
+    !(i18n.resolvedLanguage in localesBNMultiColumn)
+      ? DEFAULT_LOCALE
+      : i18n.resolvedLanguage;
+  const langLocalesBNAI =
+    !i18n.resolvedLanguage || !(i18n.resolvedLanguage in localesBNAI)
+      ? DEFAULT_LOCALE
+      : i18n.resolvedLanguage;
 
   const { uploadFile, errorAttachment } = useUploadFile(doc.id);
+  const conf = useConfig().data;
+  const { isFeatureFlagActivated } = useAnalytics();
+  const aiBlockNoteAllowed = !!(
+    conf?.AI_FEATURE_ENABLED &&
+    conf?.AI_FEATURE_BLOCKNOTE_ENABLED &&
+    isFeatureFlagActivated(AI_FEATURE_FLAG) &&
+    doc.abilities?.ai_proxy
+  );
+  const aiExtension = useAI?.(doc.id, aiBlockNoteAllowed);
 
   const collabName = user?.full_name || user?.email;
   const cursorName = collabName || t('Anonymous');
@@ -164,10 +190,13 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
         showCursorLabels: showCursorLabels as 'always' | 'activity',
       },
       dictionary: {
-        ...locales[lang as keyof typeof locales],
-        ...(multiColumnLocales && {
+        ...localesBN[langLocalesBN as keyof typeof localesBN],
+        ...(localesBNMultiColumn && {
           multi_column:
-            multiColumnLocales[lang as keyof typeof multiColumnLocales],
+            localesBNMultiColumn[
+              langLocalesBNMultiColumn as keyof typeof localesBNMultiColumn
+            ],
+          ai: localesBNAI?.[langLocalesBNAI as keyof typeof localesBNAI],
         }),
       },
       pasteHandler: ({ event, defaultPasteHandler }) => {
@@ -190,7 +219,15 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
 
         return defaultPasteHandler();
       },
-      extensions: [CommentsExtension({ threadStore, resolveUsers })],
+      extensions: [
+        CommentsExtension({ threadStore, resolveUsers }),
+        ...(aiExtension ? [aiExtension] : []),
+      ],
+      visualMedia: {
+        image: {
+          maxWidth: 760,
+        },
+      },
       tables: {
         splitCells: true,
         cellBackgroundColor: true,
@@ -200,7 +237,17 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
       uploadFile,
       schema: blockNoteSchema,
     },
-    [cursorName, lang, provider, uploadFile, threadStore, resolveUsers],
+    [
+      aiExtension,
+      cursorName,
+      langLocalesBN,
+      langLocalesBNMultiColumn,
+      langLocalesBNAI,
+      provider,
+      uploadFile,
+      threadStore,
+      resolveUsers,
+    ],
   );
 
   useHeadings(editor);
@@ -243,8 +290,11 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
         comments={showComments}
         aria-label={t('Document editor')}
       >
-        <BlockNoteSuggestionMenu />
-        <BlockNoteToolbar />
+        {aiBlockNoteAllowed && AIMenuController && AIMenu && (
+          <AIMenuController aiMenu={AIMenu} />
+        )}
+        <BlockNoteSuggestionMenu aiAllowed={aiBlockNoteAllowed} />
+        <BlockNoteToolbar aiAllowed={aiBlockNoteAllowed} />
       </BlockNoteView>
     </Box>
   );
@@ -311,7 +361,7 @@ export const BlockNoteReader = ({
         slashMenu={false}
         comments={false}
       >
-        <BlockNoteToolbar />
+        <BlockNoteToolbar aiAllowed={false} />
       </BlockNoteView>
     </Box>
   );

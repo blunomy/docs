@@ -101,6 +101,7 @@ class Base(Configuration):
                 "localhost", environ_name="DB_HOST", environ_prefix=None
             ),
             "PORT": values.Value(5432, environ_name="DB_PORT", environ_prefix=None),
+            # Psycopg pool can be configured in the post_setup method
         }
     }
     DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
@@ -114,8 +115,8 @@ class Base(Configuration):
     SEARCH_INDEXER_BATCH_SIZE = values.IntegerValue(
         default=100_000, environ_name="SEARCH_INDEXER_BATCH_SIZE", environ_prefix=None
     )
-    SEARCH_INDEXER_URL = values.Value(
-        default=None, environ_name="SEARCH_INDEXER_URL", environ_prefix=None
+    INDEXING_URL = values.Value(
+        default=None, environ_name="INDEXING_URL", environ_prefix=None
     )
     SEARCH_INDEXER_COUNTDOWN = values.IntegerValue(
         default=1, environ_name="SEARCH_INDEXER_COUNTDOWN", environ_prefix=None
@@ -123,8 +124,8 @@ class Base(Configuration):
     SEARCH_INDEXER_SECRET = values.Value(
         default=None, environ_name="SEARCH_INDEXER_SECRET", environ_prefix=None
     )
-    SEARCH_INDEXER_QUERY_URL = values.Value(
-        default=None, environ_name="SEARCH_INDEXER_QUERY_URL", environ_prefix=None
+    SEARCH_URL = values.Value(
+        default=None, environ_name="SEARCH_URL", environ_prefix=None
     )
     SEARCH_INDEXER_QUERY_LIMIT = values.PositiveIntegerValue(
         default=50, environ_name="SEARCH_INDEXER_QUERY_LIMIT", environ_prefix=None
@@ -173,6 +174,11 @@ class Base(Configuration):
     )
     AWS_S3_ADDRESSING_STYLE = values.Value(
         environ_name="AWS_S3_ADDRESSING_STYLE",
+        environ_prefix=None,
+    )
+    AWS_S3_SIGNATURE_VERSION = values.Value(
+        "s3v4",
+        environ_name="AWS_S3_SIGNATURE_VERSION",
         environ_prefix=None,
     )
 
@@ -327,9 +333,11 @@ class Base(Configuration):
         "django.middleware.csrf.CsrfViewMiddleware",
         "django.contrib.auth.middleware.AuthenticationMiddleware",
         "core.middleware.ForceSessionMiddleware",
+        "core.middleware.SaveRawBodyMiddleware",
         "django.contrib.messages.middleware.MessageMiddleware",
         "dockerflow.django.middleware.DockerflowMiddleware",
         "csp.middleware.CSPMiddleware",
+        "waffle.middleware.WaffleMiddleware",
     ]
 
     AUTHENTICATION_BACKENDS = [
@@ -351,6 +359,7 @@ class Base(Configuration):
         "parler",
         "treebeard",
         "easy_thumbnails",
+        "waffle",
         # Django
         "django.contrib.admin",
         "django.contrib.auth",
@@ -684,21 +693,128 @@ class Base(Configuration):
         environ_prefix=None,
     )
 
+    # OIDC Resource Server
+
+    OIDC_RESOURCE_SERVER_ENABLED = values.BooleanValue(
+        default=False, environ_name="OIDC_RESOURCE_SERVER_ENABLED", environ_prefix=None
+    )
+
+    OIDC_RS_BACKEND_CLASS = values.Value(
+        "lasuite.oidc_resource_server.backend.ResourceServerBackend",
+        environ_name="OIDC_RS_BACKEND_CLASS",
+        environ_prefix=None,
+    )
+
+    OIDC_OP_URL = values.Value(None, environ_name="OIDC_OP_URL", environ_prefix=None)
+
+    OIDC_VERIFY_SSL = values.BooleanValue(
+        default=True, environ_name="OIDC_VERIFY_SSL", environ_prefix=None
+    )
+
+    OIDC_TIMEOUT = values.PositiveIntegerValue(
+        3, environ_name="OIDC_TIMEOUT", environ_prefix=None
+    )
+
+    OIDC_PROXY = values.Value(None, environ_name="OIDC_PROXY", environ_prefix=None)
+
+    OIDC_OP_INTROSPECTION_ENDPOINT = values.Value(
+        None, environ_name="OIDC_OP_INTROSPECTION_ENDPOINT", environ_prefix=None
+    )
+
+    OIDC_RS_CLIENT_ID = values.Value(
+        None, environ_name="OIDC_RS_CLIENT_ID", environ_prefix=None
+    )
+
+    OIDC_RS_CLIENT_SECRET = values.Value(
+        None, environ_name="OIDC_RS_CLIENT_SECRET", environ_prefix=None
+    )
+
+    OIDC_RS_AUDIENCE_CLAIM = values.Value(
+        "client_id", environ_name="OIDC_RS_AUDIENCE_CLAIM", environ_prefix=None
+    )
+
+    OIDC_RS_ENCRYPTION_ENCODING = values.Value(
+        "A256GCM", environ_name="OIDC_RS_ENCRYPTION_ENCODING", environ_prefix=None
+    )
+
+    OIDC_RS_ENCRYPTION_ALGO = values.Value(
+        "RSA-OAEP", environ_name="OIDC_RS_ENCRYPTION_ALGO", environ_prefix=None
+    )
+
+    OIDC_RS_SIGNING_ALGO = values.Value(
+        "ES256", environ_name="OIDC_RS_SIGNING_ALGO", environ_prefix=None
+    )
+
+    OIDC_RS_SCOPES = values.ListValue(
+        ["openid"], environ_name="OIDC_RS_SCOPES", environ_prefix=None
+    )
+
+    OIDC_RS_ALLOWED_AUDIENCES = values.ListValue(
+        default=[],
+        environ_name="OIDC_RS_ALLOWED_AUDIENCES",
+        environ_prefix=None,
+    )
+
+    OIDC_RS_PRIVATE_KEY_STR = values.Value(
+        default=None,
+        environ_name="OIDC_RS_PRIVATE_KEY_STR",
+        environ_prefix=None,
+    )
+    OIDC_RS_ENCRYPTION_KEY_TYPE = values.Value(
+        default="RSA",
+        environ_name="OIDC_RS_ENCRYPTION_KEY_TYPE",
+        environ_prefix=None,
+    )
+
+    # External API Configuration
+    # Configure available routes and actions for external_api endpoints
+    EXTERNAL_API = values.DictValue(
+        default={
+            "documents": {
+                "enabled": True,
+                "actions": [
+                    "list",
+                    "retrieve",
+                    "create",
+                    "children",
+                ],
+            },
+            "document_access": {
+                "enabled": False,
+                "actions": [],
+            },
+            "document_invitation": {
+                "enabled": False,
+                "actions": [],
+            },
+            "users": {
+                "enabled": True,
+                "actions": ["get_me"],
+            },
+        },
+        environ_name="EXTERNAL_API",
+        environ_prefix=None,
+    )
+
     ALLOW_LOGOUT_GET_METHOD = values.BooleanValue(
         default=True, environ_name="ALLOW_LOGOUT_GET_METHOD", environ_prefix=None
     )
 
-    # AI service
-    AI_FEATURE_ENABLED = values.BooleanValue(
-        default=False, environ_name="AI_FEATURE_ENABLED", environ_prefix=None
-    )
-    AI_API_KEY = SecretFileValue(None, environ_name="AI_API_KEY", environ_prefix=None)
-    AI_BASE_URL = values.Value(None, environ_name="AI_BASE_URL", environ_prefix=None)
-    AI_MODEL = values.Value(None, environ_name="AI_MODEL", environ_prefix=None)
+    # AI settings
     AI_ALLOW_REACH_FROM = values.Value(
         choices=("public", "authenticated", "restricted"),
         default="authenticated",
         environ_name="AI_ALLOW_REACH_FROM",
+        environ_prefix=None,
+    )
+    AI_API_KEY = SecretFileValue(None, environ_name="AI_API_KEY", environ_prefix=None)
+    AI_BASE_URL = values.Value(None, environ_name="AI_BASE_URL", environ_prefix=None)
+    AI_BOT = values.DictValue(
+        default={
+            "name": _("Docs AI"),
+            "color": "#8bc6ff",
+        },
+        environ_name="AI_BOT",
         environ_prefix=None,
     )
     AI_DOCUMENT_RATE_THROTTLE_RATES = {
@@ -706,6 +822,26 @@ class Base(Configuration):
         "hour": 100,
         "day": 500,
     }
+    # Master settings to enable AI features, if you set it to False,
+    # all AI features will be disabled even if the other settings are enabled.
+    AI_FEATURE_ENABLED = values.BooleanValue(
+        default=False, environ_name="AI_FEATURE_ENABLED", environ_prefix=None
+    )
+    # Far better UI but more flaky for the moment
+    # ⚠️ AGPL license, be sure to comply with the Blocknote license
+    # if you enable it (https://www.blocknotejs.org/)
+    AI_FEATURE_BLOCKNOTE_ENABLED = values.BooleanValue(
+        default=False, environ_name="AI_FEATURE_BLOCKNOTE_ENABLED", environ_prefix=None
+    )
+    # UI with less features but more stable
+    # MIT friendly license, you can enable it without worrying about the license
+    AI_FEATURE_LEGACY_ENABLED = values.BooleanValue(
+        default=True, environ_name="AI_FEATURE_LEGACY_ENABLED", environ_prefix=None
+    )
+    AI_MODEL = values.Value(None, environ_name="AI_MODEL", environ_prefix=None)
+    AI_VERCEL_SDK_VERSION = values.IntegerValue(
+        6, environ_name="AI_VERCEL_SDK_VERSION", environ_prefix=None
+    )
     AI_USER_RATE_THROTTLE_RATES = {
         "minute": 3,
         "hour": 50,
@@ -736,8 +872,11 @@ class Base(Configuration):
     DOCSPEC_API_URL = values.Value(environ_name="DOCSPEC_API_URL", environ_prefix=None)
 
     # Imported file settings
+    CONVERSION_UPLOAD_ENABLED = values.BooleanValue(
+        False, environ_name="CONVERSION_UPLOAD_ENABLED", environ_prefix=None
+    )
     CONVERSION_FILE_MAX_SIZE = values.IntegerValue(
-        20 * MB,  # 10MB
+        20 * MB,
         environ_name="CONVERSION_FILE_MAX_SIZE",
         environ_prefix=None,
     )
@@ -843,6 +982,11 @@ class Base(Configuration):
         environ_name="API_USERS_LIST_LIMIT",
         environ_prefix=None,
     )
+    API_USERS_SEARCH_QUERY_MIN_LENGTH = values.PositiveIntegerValue(
+        default=3,
+        environ_name="API_USERS_SEARCH_QUERY_MIN_LENGTH",
+        environ_prefix=None,
+    )
 
     # Content Security Policy
     # See https://content-security-policy.com/ for more information.
@@ -876,6 +1020,16 @@ class Base(Configuration):
         ),
     }
 
+    # User accounts management
+    USER_RECONCILIATION_FORM_URL = values.Value(
+        None, environ_name="USER_RECONCILIATION_FORM_URL", environ_prefix=None
+    )
+    USER_ONBOARDING_DOCUMENTS = values.ListValue(
+        [], environ_name="USER_ONBOARDING_DOCUMENTS", environ_prefix=None
+    )
+    USER_ONBOARDING_SANDBOX_DOCUMENT = values.Value(
+        None, environ_name="USER_ONBOARDING_SANDBOX_DOCUMENT", environ_prefix=None
+    )
     # Marketing and communication settings
     SIGNUP_NEW_USER_TO_MARKETING_EMAIL = values.BooleanValue(
         False,
@@ -958,6 +1112,36 @@ class Base(Configuration):
             raise ValueError(
                 "Both OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION and "
                 "OIDC_ALLOW_DUPLICATE_EMAILS cannot be set to True simultaneously. "
+            )
+
+        psycopg_pool_enabled = values.BooleanValue(
+            False, environ_name="DB_PSYCOPG_POOL_ENABLED", environ_prefix=""
+        )
+
+        if psycopg_pool_enabled:
+            cls.DATABASES["default"].update(
+                {
+                    "OPTIONS": {
+                        # https://www.psycopg.org/psycopg3/docs/api/pool.html#psycopg_pool.ConnectionPool
+                        "pool": {
+                            "min_size": values.IntegerValue(
+                                4,
+                                environ_name="DB_PSYCOPG_POOL_MIN_SIZE",
+                                environ_prefix=None,
+                            ),
+                            "max_size": values.IntegerValue(
+                                None,
+                                environ_name="DB_PSYCOPG_POOL_MAX_SIZE",
+                                environ_prefix=None,
+                            ),
+                            "timeout": values.IntegerValue(
+                                3,
+                                environ_name="DB_PSYCOPG_POOL_TIMEOUT",
+                                environ_prefix=None,
+                            ),
+                        }
+                    },
+                }
             )
 
 

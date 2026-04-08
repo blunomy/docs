@@ -34,12 +34,14 @@ import {
   generateHtmlDocument,
   improveHtmlAccessibility,
 } from '../utils_html';
+import { printDocumentWithStyles } from '../utils_print';
 
 enum DocDownloadFormat {
   HTML = 'html',
   PDF = 'pdf',
   DOCX = 'docx',
   ODT = 'odt',
+  PRINT = 'print',
 }
 
 interface ModalExportProps {
@@ -58,6 +60,23 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
   const { untitledDocument } = useTrans();
   const mediaUrl = useMediaUrl();
 
+  const formatOptions = [
+    { label: t('PDF'), value: DocDownloadFormat.PDF },
+    { label: t('Docx'), value: DocDownloadFormat.DOCX },
+    { label: t('ODT'), value: DocDownloadFormat.ODT },
+    { label: t('HTML'), value: DocDownloadFormat.HTML },
+    { label: t('Print'), value: DocDownloadFormat.PRINT },
+  ];
+
+  const formatLabels = Object.fromEntries(
+    formatOptions.map((opt) => [opt.value, opt.label]),
+  );
+
+  const downloadButtonAriaLabel =
+    format === DocDownloadFormat.PRINT
+      ? t('Print')
+      : t('Download {{format}}', { format: formatLabels[format] });
+
   async function onSubmit() {
     if (!editor) {
       toast(t('The export failed'), VariantType.ERROR);
@@ -65,6 +84,14 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
     }
 
     setIsExporting(true);
+
+    // Handle print separately as it doesn't download a file
+    if (format === DocDownloadFormat.PRINT) {
+      printDocumentWithStyles();
+      setIsExporting(false);
+      onClose();
+      return;
+    }
 
     const filename = (doc.title || untitledDocument)
       .toLowerCase()
@@ -186,6 +213,7 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
       closeOnClickOutside
       onClose={() => onClose()}
       hideCloseButton
+      aria-label={t('Export')}
       aria-describedby="modal-export-title"
       rightActions={
         <>
@@ -193,30 +221,26 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
             aria-label={t('Cancel the download')}
             variant="secondary"
             fullWidth
+            autoFocus
             onClick={() => onClose()}
           >
             {t('Cancel')}
           </Button>
           <Button
             data-testid="doc-export-download-button"
-            aria-label={t('Download')}
+            aria-label={downloadButtonAriaLabel}
             variant="primary"
             fullWidth
             onClick={() => void onSubmit()}
             disabled={isExporting}
           >
-            {t('Download')}
+            {format === DocDownloadFormat.PRINT ? t('Print') : t('Download')}
           </Button>
         </>
       }
       size={ModalSize.MEDIUM}
       title={
-        <Box
-          $direction="row"
-          $justify="space-between"
-          $align="center"
-          $width="100%"
-        >
+        <>
           <Text
             as="h1"
             $margin="0"
@@ -225,37 +249,33 @@ export const ModalExport = ({ onClose, doc }: ModalExportProps) => {
             $align="flex-start"
             data-testid="modal-export-title"
           >
-            {t('Download')}
+            {t('Export')}
           </Text>
-          <ButtonCloseModal
-            aria-label={t('Close the download modal')}
-            onClick={() => onClose()}
-            disabled={isExporting}
-          />
-        </Box>
+          <Box $position="absolute" $css="top: 4px; right: 4px;">
+            <ButtonCloseModal
+              aria-label={t('Close the download modal')}
+              onClick={() => onClose()}
+              disabled={isExporting}
+            />
+          </Box>
+        </>
       }
     >
       <Box
         $margin={{ bottom: 'xl' }}
-        aria-label={t('Content modal to export the document')}
         $gap="1rem"
         className="--docs--modal-export-content"
       >
         <Text $variation="secondary" $size="sm" as="p">
           {t(
-            'Download your document in a .docx, .odt, .pdf or .html(zip) format.',
+            'Export your document to print or download in .docx, .odt, .pdf or .html(zip) format.',
           )}
         </Text>
         <Select
           clearable={false}
           fullWidth
           label={t('Format')}
-          options={[
-            { label: t('Docx'), value: DocDownloadFormat.DOCX },
-            { label: t('ODT'), value: DocDownloadFormat.ODT },
-            { label: t('PDF'), value: DocDownloadFormat.PDF },
-            { label: t('HTML'), value: DocDownloadFormat.HTML },
-          ]}
+          options={formatOptions}
           value={format}
           onChange={(options) =>
             setFormat(options.target.value as DocDownloadFormat)

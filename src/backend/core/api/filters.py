@@ -2,6 +2,7 @@
 
 import unicodedata
 
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 import django_filters
@@ -46,10 +47,13 @@ class DocumentFilter(django_filters.FilterSet):
     title = AccentInsensitiveCharFilter(
         field_name="title", lookup_expr="unaccent__icontains", label=_("Title")
     )
+    q = AccentInsensitiveCharFilter(
+        field_name="title", lookup_expr="unaccent__icontains", label=_("Search")
+    )
 
     class Meta:
         model = models.Document
-        fields = ["title"]
+        fields = ["title", "q"]
 
 
 class ListDocumentFilter(DocumentFilter):
@@ -69,7 +73,7 @@ class ListDocumentFilter(DocumentFilter):
 
     class Meta:
         model = models.Document
-        fields = ["is_creator_me", "is_favorite", "title"]
+        fields = ["is_creator_me", "is_favorite", "title", "q"]
 
     # pylint: disable=unused-argument
     def filter_is_creator_me(self, queryset, name, value):
@@ -135,4 +139,6 @@ class UserSearchFilter(django_filters.FilterSet):
     Custom filter for searching users.
     """
 
-    q = django_filters.CharFilter(min_length=5, max_length=254)
+    q = django_filters.CharFilter(
+        min_length=settings.API_USERS_SEARCH_QUERY_MIN_LENGTH, max_length=254
+    )

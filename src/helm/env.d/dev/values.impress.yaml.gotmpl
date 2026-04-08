@@ -70,9 +70,16 @@ backend:
     AWS_STORAGE_BUCKET_NAME: docs-media-storage
     STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
     DOCSPEC_API_URL: http://impress-docs-docspec:4000/conversion
+    USER_RECONCILIATION_FORM_URL: https://docs.127.0.0.1.nip.io
     Y_PROVIDER_API_BASE_URL: http://impress-docs-y-provider:443/api/
     Y_PROVIDER_API_KEY: my-secret
     CACHES_KEY_PREFIX: "{{ now | unixEpoch }}"
+  django:
+    envVars:
+      WEB_CONCURRENCY: 1
+      DB_PSYCOPG_POOL_MIN_SIZE: 10
+
+
   migrate:
     command:
       - "/bin/sh"
@@ -90,11 +97,14 @@ backend:
     restartPolicy: Never
 
   command:
-    - "gunicorn"
-    - "-c"
-    - "/usr/local/etc/gunicorn/impress.py"
-    - "impress.wsgi:application"
-    - "--reload"
+    - uvicorn
+    - --app-dir=/app
+    - --host=0.0.0.0
+    - --timeout-graceful-shutdown=300
+    - --limit-max-requests=20000
+    - --lifespan=off
+    - --reload
+    - "impress.asgi:application"
 
   createsuperuser:
     command:
@@ -143,6 +153,9 @@ frontend:
     repository: localhost:5001/impress-frontend
     pullPolicy: Always
     tag: "latest"
+
+  securityContext:
+    runAsNonRoot: false
 
 yProvider:
   replicas: 1

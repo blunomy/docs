@@ -18,17 +18,19 @@ export const QuickSearchGroup = <T,>({
   renderElement,
 }: Props<T>) => {
   return (
-    <Box $margin={{ top: 'sm' }}>
+    <Box>
+      <Text as="h2" $weight="700" $size="sm" $margin="none">
+        {group.groupName}
+      </Text>
       <Command.Group
         key={group.groupName}
-        heading={group.groupName}
         forceMount={false}
         contentEditable={false}
       >
         {group.startActions?.map((action, index) => {
           return (
             <QuickSearchItem
-              key={`${group.groupName}-action-${index}`}
+              key={`${group.groupKey ?? group.groupName}-start-actions-${index}`}
               onSelect={action.onSelect}
             >
               {action.content}
@@ -38,8 +40,8 @@ export const QuickSearchGroup = <T,>({
         {group.elements.map((groupElement, index) => {
           return (
             <QuickSearchItem
-              id={`${group.groupName}-element-${index}`}
-              key={`${group.groupName}-element-${index}`}
+              id={`${group.groupKey ?? group.groupName}-element-${index}`}
+              key={`${group.groupKey ?? group.groupName}-element-${index}`}
               onSelect={() => {
                 onSelect?.(groupElement);
               }}
@@ -51,7 +53,7 @@ export const QuickSearchGroup = <T,>({
         {group.endActions?.map((action, index) => {
           return (
             <QuickSearchItem
-              key={`${group.groupName}-action-${index}`}
+              key={`${group.groupKey ?? group.groupName}-end-actions-${index}`}
               onSelect={action.onSelect}
             >
               {action.content}

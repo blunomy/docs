@@ -23,8 +23,8 @@ test.describe('Doc Version', () => {
     await page.getByRole('menuitem', { name: 'Version history' }).click();
     await expect(page.getByText('History', { exact: true })).toBeVisible();
 
-    const modal = page.getByLabel('version history modal');
-    const panel = modal.getByLabel('version list');
+    const modal = page.getByRole('dialog', { name: 'Version history' });
+    const panel = modal.getByLabel('Version list');
     await expect(panel).toBeVisible();
     await expect(modal.getByText('No versions')).toBeVisible();
 
@@ -79,9 +79,9 @@ test.describe('Doc Version', () => {
     await expect(panel).toBeVisible();
     await expect(page.getByText('History', { exact: true })).toBeVisible();
     await expect(page.getByRole('status')).toBeHidden();
-    const items = await panel.locator('.version-item').all();
-    expect(items.length).toBe(2);
-    await items[1].click();
+    const items = panel.locator('.version-item');
+    await expect(items).toHaveCount(2);
+    await items.nth(1).click();
 
     await expect(modal.getByText('Hello World')).toBeVisible();
     await expect(modal.getByText('It will create a version')).toBeHidden();
@@ -89,7 +89,7 @@ test.describe('Doc Version', () => {
       modal.locator('div[data-content-type="callout"]').first(),
     ).toBeHidden();
 
-    await items[0].click();
+    await items.nth(0).click();
 
     await expect(modal.getByText('Hello World')).toBeVisible();
     await expect(modal.getByText('It will create a version')).toBeVisible();
@@ -100,7 +100,7 @@ test.describe('Doc Version', () => {
       modal.getByText('It will create a second version'),
     ).toBeHidden();
 
-    await items[1].click();
+    await items.nth(1).click();
 
     await expect(modal.getByText('Hello World')).toBeVisible();
     await expect(modal.getByText('It will create a version')).toBeHidden();
@@ -155,20 +155,25 @@ test.describe('Doc Version', () => {
     await page.getByLabel('Open the document options').click();
     await page.getByRole('menuitem', { name: 'Version history' }).click();
 
-    const modal = page.getByLabel('version history modal');
-    const panel = modal.getByLabel('version list');
+    const modal = page.getByRole('dialog', { name: 'Version history' });
+    const panel = modal.getByLabel('Version list');
     await expect(panel).toBeVisible();
 
     await expect(page.getByText('History', { exact: true })).toBeVisible();
-    await panel.getByRole('button', { name: 'version item' }).click();
+    await panel.locator('.version-item').first().click();
 
     await expect(modal.getByText('World')).toBeHidden();
 
-    await page.getByRole('button', { name: 'Restore' }).click();
-    await expect(page.getByText('Your current document will')).toBeVisible();
-    await page.getByText('If a member is editing, his').click();
+    await page.getByRole('button', { name: 'Restore', exact: true }).click();
+    await expect(
+      page.getByText(
+        "The current document will be replaced, but you'll still find it in the version history.",
+      ),
+    ).toBeVisible();
 
     await page.getByLabel('Restore', { exact: true }).click();
+
+    await page.waitForTimeout(500);
 
     await expect(page.getByText('Hello')).toBeVisible();
     await expect(page.getByText('World')).toBeHidden();

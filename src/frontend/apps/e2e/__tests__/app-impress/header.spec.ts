@@ -1,10 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  expectLoginPage,
-  keyCloakSignIn,
-  overrideConfig,
-} from './utils-common';
+import { overrideConfig } from './utils-common';
+import { SignIn, expectLoginPage } from './utils-signin';
 
 test.describe('Header', () => {
   test('checks all the elements are visible', async ({ page }) => {
@@ -34,10 +31,15 @@ test.describe('Header', () => {
       FRONTEND_THEME: 'dsfr',
       theme_customization: {
         header: {
-          logo: {
-            src: '/assets/logo-gouv.svg',
-            width: '220px',
-            alt: 'Gouvernement Logo',
+          icon: {
+            src: '/assets/icon-docs-v2.svg',
+            style: {
+              width: '100px',
+              height: 'auto',
+            },
+            alt: '',
+            withTitle: false,
+            'data-testid': 'custom-testid-docs',
           },
         },
       },
@@ -46,19 +48,12 @@ test.describe('Header', () => {
 
     const header = page.locator('header').first();
 
-    await expect(header.getByTestId('header-icon-docs')).toBeVisible();
-    await expect(header.locator('h1').getByText('Docs')).toHaveCSS(
-      'font-family',
-      /Marianne/i,
+    await expect(header.getByTestId('custom-testid-docs')).toHaveAttribute(
+      'src',
+      '/assets/icon-docs-v2.svg',
     );
-
-    await expect(
-      header.getByRole('button', {
-        name: 'Logout',
-      }),
-    ).toBeVisible();
-
-    await expect(header.getByText('English')).toBeVisible();
+    // With withTitle: false, the h1 is kept for accessibility but visually hidden via sr-only
+    await expect(header.locator('h1').getByText('Docs')).toHaveClass(/sr-only/);
   });
 
   test('checks a custom waffle', async ({ page }) => {
@@ -144,53 +139,31 @@ test.describe('Header', () => {
     await expect(page.getByRole('link', { name: 'Grist' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Visio' })).toBeVisible();
   });
-});
 
-test.describe('Header mobile', () => {
-  test.use({ viewport: { width: 500, height: 1200 } });
+  test('it displays skip link on first TAB and focuses page heading on click', async ({
+    page,
+  }) => {
+    await page.goto('/');
 
-  test('it checks the header when mobile with DSFR theme', async ({ page }) => {
-    await overrideConfig(page, {
-      FRONTEND_THEME: 'dsfr',
-      theme_customization: {
-        header: {
-          logo: {
-            src: '/assets/logo-gouv.svg',
-            width: '220px',
-            alt: 'Gouvernement Logo',
-          },
-        },
-      },
+    // Wait for skip link to be mounted (client-side only component)
+    const skipLink = page.getByRole('link', { name: 'Go to content' });
+    await skipLink.waitFor({ state: 'attached' });
+
+    // First TAB shows the skip link
+    await page.keyboard.press('Tab');
+
+    // The skip link should be visible and focused
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toBeVisible();
+    // Clicking moves focus to the page heading
+    await skipLink.click();
+    const pageHeading = page.getByRole('heading', {
+      name: 'All docs',
+      level: 2,
     });
-
-    await page.goto('/');
-
-    const header = page.locator('header').first();
-
-    await expect(header.getByLabel('Open the header menu')).toBeVisible();
-    await expect(header.getByTestId('header-icon-docs')).toBeVisible();
+    await expect(pageHeading).toBeFocused();
   });
-});
 
-test.describe('Header: Log out', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  // eslint-disable-next-line playwright/expect-expect
-  test('checks logout button', async ({ page, browserName }) => {
-    await page.goto('/');
-    await keyCloakSignIn(page, browserName);
-
-    await page
-      .getByRole('button', {
-        name: 'Logout',
-      })
-      .click();
-
-    await expectLoginPage(page);
-  });
-});
-
-test.describe('Header: Override configuration', () => {
   test('checks the header is correctly overrided', async ({ page }) => {
     await overrideConfig(page, {
       FRONTEND_THEME: 'dsfr',
@@ -218,26 +191,20 @@ test.describe('Header: Override configuration', () => {
   });
 });
 
-test.describe('Header: Skip to Content', () => {
-  test('it displays skip link on first TAB and focuses main content on click', async ({
-    page,
-  }) => {
+test.describe('Header: Log out', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  // eslint-disable-next-line playwright/expect-expect
+  test('checks logout button', async ({ page, browserName }) => {
     await page.goto('/');
+    await SignIn(page, browserName);
 
-    // Wait for skip button to be mounted (client-side only component)
-    const skipButton = page.getByRole('button', { name: 'Go to content' });
-    await skipButton.waitFor({ state: 'attached' });
+    await page
+      .getByRole('button', {
+        name: 'Logout',
+      })
+      .click();
 
-    // First TAB shows the skip button
-    await page.keyboard.press('Tab');
-
-    // The skip button should be visible and focused
-    await expect(skipButton).toBeFocused();
-    await expect(skipButton).toBeVisible();
-
-    // Clicking moves focus to the main content
-    await skipButton.click();
-    const mainContent = page.locator('main#mainContent');
-    await expect(mainContent).toBeFocused();
+    await expectLoginPage(page);
   });
 });

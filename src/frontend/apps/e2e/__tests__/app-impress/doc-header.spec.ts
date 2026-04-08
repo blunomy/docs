@@ -7,7 +7,13 @@ import {
   mockedDocument,
   verifyDocName,
 } from './utils-common';
-import { mockedAccesses, mockedInvitations } from './utils-share';
+import { writeInEditor } from './utils-editor';
+import {
+  connectOtherUserToDoc,
+  mockedAccesses,
+  mockedInvitations,
+  updateShareLink,
+} from './utils-share';
 import { createRootSubPage, getTreeRow } from './utils-sub-pages';
 
 test.beforeEach(async ({ page }) => {
@@ -15,6 +21,46 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe('Doc Header', () => {
+  test('toggles panel collapse from floating bar button', async ({
+    page,
+    browserName,
+  }) => {
+    const [docTitle] = await createDoc(
+      page,
+      'doc-floating-bar',
+      browserName,
+      1,
+    );
+
+    const cardCollapse = page.locator('.--docs--left-panel-collapse-button');
+    const collapseButton = cardCollapse.getByTestId(
+      'floating-bar-toggle-left-panel',
+    );
+    await expect(collapseButton).toBeVisible();
+
+    // Panel open
+    await expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(collapseButton.getByText(docTitle)).toBeHidden();
+
+    // Collapse panel
+    await collapseButton.click();
+    await expect(collapseButton).toHaveAttribute('aria-expanded', 'false');
+    await expect(cardCollapse.getByText(docTitle)).toBeHidden();
+
+    // When the title is not visible in the viewport, the button should show the title
+    const editor = await writeInEditor({ page, text: 'Lorem ipsum' });
+    for (let i = 0; i < 25; i++) {
+      await editor.press('Enter');
+    }
+    await writeInEditor({ page, text: 'Lorem ipsum 2' });
+    await expect(cardCollapse.getByText(docTitle)).toBeVisible();
+
+    // Expand panel and check the title is hidden again
+    await collapseButton.click();
+    await expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(cardCollapse.getByText(docTitle)).toBeHidden();
+  });
+
   test('it checks the element are correctly displayed', async ({
     page,
     browserName,
@@ -32,11 +78,7 @@ test.describe('Doc Header', () => {
 
     await page.getByTestId('doc-visibility').click();
 
-    await page
-      .getByRole('menuitem', {
-        name: 'Public',
-      })
-      .click();
+    await page.getByRole('menuitemradio', { name: 'Public' }).click();
 
     await page.getByRole('button', { name: 'close' }).first().click();
 
@@ -52,13 +94,54 @@ test.describe('Doc Header', () => {
     ).toBeVisible();
   });
 
-  test('it updates the title doc', async ({ page, browserName }) => {
-    await createDoc(page, 'doc-update', browserName, 1);
-    const docTitle = page.getByRole('textbox', { name: 'Document title' });
-    await expect(docTitle).toBeVisible();
-    await docTitle.fill('Hello World');
-    await docTitle.blur();
+  test('it updates the title doc and check the broadcast', async ({
+    page,
+    browserName,
+  }) => {
+    const [docTitle] = await createDoc(
+      page,
+      'doc-title-update',
+      browserName,
+      1,
+    );
+    await page.getByRole('button', { name: 'Share' }).click();
+    await updateShareLink(page, 'Public', 'Editing');
+
+    const docUrl = page.url();
+
+    const { otherPage, cleanup } = await connectOtherUserToDoc({
+      docUrl,
+      browserName,
+      withoutSignIn: true,
+      docTitle,
+    });
+
+    // Wait for other page to sync
+    await page.waitForTimeout(1000);
+
+    await page.keyboard.press('Escape');
+    const elTitle = page.getByRole('textbox', { name: 'Document title' });
+    await expect(elTitle).toBeVisible();
+    await elTitle.fill('Hello World');
+    await elTitle.blur();
     await verifyDocName(page, 'Hello World');
+
+    // Wait for other page to sync
+    await page.waitForTimeout(1000);
+
+    // Check other user page
+    await verifyDocName(otherPage, 'Hello World');
+
+    const elTitleOther = otherPage.getByRole('textbox', {
+      name: 'Document title',
+    });
+    await elTitleOther.fill('Hello Other World');
+    await elTitleOther.blur();
+
+    // Check first user page
+    await verifyDocName(page, 'Hello Other World');
+
+    await cleanup();
   });
 
   test('it updates the title doc adding a leading emoji', async ({
@@ -154,7 +237,7 @@ test.describe('Doc Header', () => {
         hasText: randomDoc,
       });
 
-    expect(await row.count()).toBe(0);
+    await expect(row).toHaveCount(0);
   });
 
   test('it checks the options available if administrator', async ({ page }) => {
@@ -193,12 +276,12 @@ test.describe('Doc Header', () => {
     ).toBeDisabled();
 
     // Click somewhere else to close the options
-    await page.click('body', { position: { x: 0, y: 0 } });
+    await page.locator('body').click({ position: { x: 0, y: 0 } });
 
     await page.getByRole('button', { name: 'Share' }).click();
 
     const shareModal = page.getByRole('dialog', {
-      name: 'Share modal content',
+      name: 'Share the document',
     });
     await expect(shareModal).toBeVisible();
     await expect(page.getByText('Share the document')).toBeVisible();
@@ -213,7 +296,7 @@ test.describe('Doc Header', () => {
 
     await invitationRole.click();
 
-    await page.getByRole('menuitem', { name: 'Remove access' }).click();
+    await page.getByRole('menuitemradio', { name: 'Remove access' }).click();
     await expect(invitationCard).toBeHidden();
 
     const memberCard = shareModal.getByLabel('List members card');
@@ -226,7 +309,7 @@ test.describe('Doc Header', () => {
 
     await roles.click();
     await expect(
-      page.getByRole('menuitem', { name: 'Remove access' }),
+      page.getByRole('menuitemradio', { name: 'Remove access' }),
     ).toBeEnabled();
   });
 
@@ -272,12 +355,12 @@ test.describe('Doc Header', () => {
     ).toBeDisabled();
 
     // Click somewhere else to close the options
-    await page.click('body', { position: { x: 0, y: 0 } });
+    await page.locator('body').click({ position: { x: 0, y: 0 } });
 
     await page.getByRole('button', { name: 'Share' }).click();
 
     const shareModal = page.getByRole('dialog', {
-      name: 'Share modal content',
+      name: 'Share the document',
     });
     await expect(shareModal).toBeVisible();
     await expect(page.getByText('Share the document')).toBeVisible();
@@ -344,11 +427,13 @@ test.describe('Doc Header', () => {
     ).toBeDisabled();
 
     // Click somewhere else to close the options
-    await page.click('body', { position: { x: 0, y: 0 } });
+    await page.locator('body').click({ position: { x: 0, y: 0 } });
 
     await page.getByRole('button', { name: 'Share' }).click();
 
-    const shareModal = page.getByLabel('Share modal');
+    const shareModal = page.getByRole('dialog', {
+      name: 'Share the document',
+    });
     await expect(page.getByText('Share the document')).toBeVisible();
 
     await expect(page.getByPlaceholder('Type a name or email')).toBeHidden();
@@ -398,7 +483,9 @@ test.describe('Doc Header', () => {
     // Copy content to clipboard
     await page.getByLabel('Open the document options').click();
     await page.getByRole('menuitem', { name: 'Copy as Markdown' }).click();
-    await expect(page.getByText('Copied to clipboard')).toBeVisible();
+    await expect(
+      page.getByText('Copied as Markdown to clipboard'),
+    ).toBeVisible();
 
     // Test that clipboard is in Markdown format
     const handle = await page.evaluateHandle(() =>
@@ -459,7 +546,7 @@ test.describe('Doc Header', () => {
       .click();
 
     // Pin
-    await page.getByText('push_pin').click();
+    await page.getByRole('menuitem', { name: 'Pin' }).click();
     await page
       .getByRole('button', { name: 'Open the document options' })
       .click();
@@ -480,11 +567,11 @@ test.describe('Doc Header', () => {
       .click();
 
     // Unpin
-    await page.getByText('Unpin').click();
+    await page.getByRole('menuitem', { name: 'Unpin' }).click();
     await page
       .getByRole('button', { name: 'Open the document options' })
       .click();
-    await expect(page.getByText('push_pin')).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Pin' })).toBeVisible();
 
     await page.goto('/');
 
@@ -618,10 +705,12 @@ test.describe('Documents Header mobile', () => {
     await page.getByRole('menuitem', { name: 'Share' }).click();
 
     const shareModal = page.getByRole('dialog', {
-      name: 'Share modal content',
+      name: 'Share the document',
     });
     await expect(shareModal).toBeVisible();
     await page.getByRole('button', { name: 'close' }).click();
-    await expect(page.getByLabel('Share modal')).toBeHidden();
+    await expect(
+      page.getByRole('dialog', { name: 'Share the document' }),
+    ).toBeHidden();
   });
 });

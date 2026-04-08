@@ -15,6 +15,7 @@ export type QuickSearchAction = {
 
 export type QuickSearchData<T> = {
   groupName: string;
+  groupKey?: string;
   elements: T[];
   emptyString?: string;
   startActions?: QuickSearchAction[];
@@ -30,36 +31,29 @@ export type QuickSearchProps = {
   loading?: boolean;
   label?: string;
   placeholder?: string;
+  groupKey?: string;
+  beforeList?: ReactNode;
 };
 
 export const QuickSearch = ({
   onFilter,
   inputContent,
   inputValue,
-  loading,
   showInput = true,
   label,
   placeholder,
+  beforeList,
   children,
 }: PropsWithChildren<QuickSearchProps>) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const listId = useId();
-  const NO_SELECTION_VALUE = '__none__';
-  const [userInteracted, setUserInteracted] = useState(false);
-  const [selectedValue, setSelectedValue] = useState(NO_SELECTION_VALUE);
-  const isExpanded = userInteracted;
-
-  const handleValueChange = (val: string) => {
-    if (userInteracted) {
-      setSelectedValue(val);
-    }
-  };
-
-  const handleUserInteract = () => {
-    if (!userInteracted) {
-      setUserInteracted(true);
-    }
-  };
+  /**
+   * Hack to prevent cmdk from auto-selecting the first element on open
+   *
+   * TODO: Find a clean solution to prevent cmdk from auto-selecting
+   * the first element on open
+   */
+  const [selectedValue, _] = useState('__none__');
 
   return (
     <>
@@ -70,23 +64,21 @@ export const QuickSearch = ({
           shouldFilter={false}
           ref={ref}
           tabIndex={-1}
+          disablePointerSelection
           value={selectedValue}
-          onValueChange={handleValueChange}
         >
           {showInput && (
             <QuickSearchInput
-              loading={loading}
               withSeparator={hasChildrens(children)}
               inputValue={inputValue}
               onFilter={onFilter}
               placeholder={placeholder}
               listId={listId}
-              isExpanded={isExpanded}
-              onUserInteract={handleUserInteract}
             >
               {inputContent}
             </QuickSearchInput>
           )}
+          {beforeList}
           <Command.List id={listId} aria-label={label} role="listbox">
             <Box>{children}</Box>
           </Command.List>

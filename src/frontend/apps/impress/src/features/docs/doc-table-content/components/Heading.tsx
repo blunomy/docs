@@ -51,14 +51,20 @@ export const Heading = ({
 
         editor.setTextCursorPosition(headingId, 'end');
 
-        document.querySelector(`[data-id="${headingId}"]`)?.scrollIntoView({
-          behavior: 'smooth',
-          inline: 'start',
-          block: 'start',
-        });
+        document
+          .querySelector<HTMLElement>(`[data-id="${headingId}"]`)
+          ?.scrollIntoView({
+            behavior: 'smooth',
+            inline: 'start',
+            block: 'start',
+          });
       }}
       $radius="var(--c--globals--spacings--st)"
-      $background={isActive ? `${colorsTokens['gray-100']}` : 'none'}
+      $background={
+        isActive
+          ? 'var(--c--contextuals--background--semantic--neutral--secondary)'
+          : 'none'
+      }
       $css={css`
         text-align: left;
         &:focus-visible {

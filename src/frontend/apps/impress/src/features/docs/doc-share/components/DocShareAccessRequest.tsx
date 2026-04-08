@@ -4,7 +4,7 @@ import {
   VariantType,
   useToastProvider,
 } from '@gouvfr-lasuite/cunningham-react';
-import { useMemo, useState } from 'react';
+import { MouseEventHandler, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createGlobalStyle } from 'styled-components';
 
@@ -18,7 +18,7 @@ import {
 } from '@/components';
 import { QuickSearchData, QuickSearchGroup } from '@/components/quick-search';
 import { useCunninghamTheme } from '@/cunningham';
-import { AccessRequest, Doc } from '@/docs/doc-management/';
+import { AccessRequest, Doc, Role } from '@/docs/doc-management/';
 import { useAuth } from '@/features/auth';
 
 import {
@@ -167,10 +167,13 @@ export const QuickSearchGroupAccessRequest = ({
 
 type ButtonAccessRequestProps = {
   docId: Doc['id'];
-} & ButtonProps;
+} & Omit<ButtonProps, 'onClick'> & {
+    onClick?: MouseEventHandler<HTMLButtonElement | HTMLAnchorElement>;
+  };
 
 export const ButtonAccessRequest = ({
   docId,
+  onClick,
   ...buttonProps
 }: ButtonAccessRequestProps) => {
   const { authenticated } = useAuth();
@@ -216,7 +219,10 @@ export const ButtonAccessRequest = ({
 
   return (
     <Button
-      onClick={() => createRequest({ docId })}
+      onClick={(e) => {
+        createRequest({ docId, role: Role.EDITOR });
+        onClick?.(e);
+      }}
       disabled={hasRequested}
       {...buttonProps}
     >

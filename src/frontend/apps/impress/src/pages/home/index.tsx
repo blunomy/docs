@@ -1,11 +1,14 @@
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Loading } from '@/components';
 import { gotoLogin, useAuth } from '@/features/auth';
 import { NextPageWithLayout } from '@/types/next';
 
 const Page: NextPageWithLayout = () => {
+  const { t } = useTranslation();
   const { authenticated } = useAuth();
   const { replace } = useRouter();
 

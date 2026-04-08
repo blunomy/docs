@@ -1,26 +1,39 @@
+import { announce } from '@react-aria/live-announcer';
 import { t } from 'i18next';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { InView } from 'react-intersection-observer';
 
+import { Box } from '@/components/';
 import { QuickSearchData, QuickSearchGroup } from '@/components/quick-search';
+import { useInfiniteSearchDocs } from '@/docs/doc-management/api/useSearchDocs';
+import { DocSearchTarget } from '@/docs/doc-search';
 
-import { Doc, useInfiniteDocs } from '../../doc-management';
+import { Doc } from '../../doc-management';
 
-import { DocSearchFiltersValues } from './DocSearchFilters';
 import { DocSearchItem } from './DocSearchItem';
 
 type DocSearchContentProps = {
+  groupName: string;
   search: string;
-  filters: DocSearchFiltersValues;
+  filterResults?: (doc: Doc) => boolean;
+  isSearchNotMandatory?: boolean;
   onSelect: (doc: Doc) => void;
   onLoadingChange?: (loading: boolean) => void;
+  target?: DocSearchTarget;
+  parentPath?: string;
+  renderSearchElement?: (doc: Doc) => React.ReactNode;
 };
 
 export const DocSearchContent = ({
+  groupName,
   search,
-  filters,
+  filterResults,
   onSelect,
   onLoadingChange,
+  renderSearchElement,
+  target,
+  parentPath,
+  isSearchNotMandatory,
 }: DocSearchContentProps) => {
   const {
     data,
@@ -29,30 +42,74 @@ export const DocSearchContent = ({
     isLoading,
     fetchNextPage,
     hasNextPage,
-  } = useInfiniteDocs({
-    page: 1,
-    title: search,
-    ...filters,
-  });
+  } = useInfiniteSearchDocs(
+    {
+      q: search,
+      page: 1,
+      target,
+      parentPath,
+    },
+    {
+      enabled: target !== DocSearchTarget.CURRENT || !!parentPath,
+    },
+  );
 
   const loading = isFetching || isRefetching || isLoading;
+  const [docsData, setDocsData] = useState<QuickSearchData<Doc>>({
+    groupName: '',
+    groupKey: 'docs',
+    elements: [],
+    emptyString: t('Loading documents...'),
+    endActions: [],
+  });
 
-  const docsData: QuickSearchData<Doc> = useMemo(() => {
-    const docs = data?.pages.flatMap((page) => page.results) || [];
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
 
-    return {
-      groupName: docs.length > 0 ? t('Select a document') : '',
-      elements: search ? docs : [],
+    let docs = data?.pages.flatMap((page) => page.results) || [];
+
+    if (filterResults) {
+      docs = docs.filter(filterResults);
+    }
+
+    const elements = search || isSearchNotMandatory ? docs : [];
+
+    setDocsData({
+      groupName: docs.length > 0 ? groupName : '',
+      groupKey: 'docs',
+      elements,
       emptyString: t('No document found'),
       endActions: hasNextPage
         ? [
             {
-              content: <InView onChange={() => void fetchNextPage()} />,
+              content: (
+                <Box $minHeight="1px">
+                  <InView onChange={() => void fetchNextPage()} />
+                </Box>
+              ),
             },
           ]
         : [],
-    };
-  }, [search, data?.pages, fetchNextPage, hasNextPage]);
+    });
+
+    if (search) {
+      announce(
+        t('{{count}} result(s) available', { count: elements.length }),
+        'polite',
+      );
+    }
+  }, [
+    search,
+    data?.pages,
+    filterResults,
+    groupName,
+    isSearchNotMandatory,
+    loading,
+    hasNextPage,
+    fetchNextPage,
+  ]);
 
   useEffect(() => {
     onLoadingChange?.(loading);
@@ -62,7 +119,9 @@ export const DocSearchContent = ({
     <QuickSearchGroup
       onSelect={onSelect}
       group={docsData}
-      renderElement={(doc) => <DocSearchItem doc={doc} />}
+      renderElement={
+        renderSearchElement ?? ((doc) => <DocSearchItem doc={doc} />)
+      }
     />
   );
 };

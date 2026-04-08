@@ -38,17 +38,35 @@
       "allowedVersions": "<5.6.0"
     },
     {
+      "groupName": "allowed pydantic-ai-slim versions",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["pydantic-ai-slim"],
+      "allowedVersions": "<1.59.0"
+    },
+    {
+      "groupName": "allowed langfuse versions",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["langfuse"],
+      "allowedVersions": "<3.12.0"
+    },
+    {
+      "groupName": "allowed django-treebeard versions",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["django-treebeard"],
+      "allowedVersions": "<5.0.0"
+    },
+    {
       "enabled": false,
       "groupName": "ignored js dependencies",
       "matchManagers": ["npm"],
       "matchPackageNames": [
-        "@next/eslint-plugin-next",
-        "eslint-config-next",
+        "@react-pdf/renderer",
         "fetch-mock",
-        "next",
         "node",
         "node-fetch",
         "react-resizable-panels",
+        "stylelint",
+        "stylelint-config-standard",
         "workbox-webpack-plugin"
       ]
     }

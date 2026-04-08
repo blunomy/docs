@@ -76,7 +76,7 @@ test.describe('Documents Grid mobile', () => {
     await expect(docsGrid).toBeVisible();
     await expect(page.getByTestId('grid-loader')).toBeHidden();
 
-    const rows = docsGrid.getByRole('row');
+    const rows = docsGrid.getByRole('listitem');
     const row = rows.filter({
       hasText: 'My mocked document',
     });
@@ -115,7 +115,7 @@ test.describe('Document grid item options', () => {
 
     // Pin
     await row.getByText(`more_horiz`).click();
-    await page.getByText('push_pin').click();
+    await page.getByRole('menuitem', { name: 'Pin' }).click();
 
     // Check is pinned
     await expect(row.getByTestId('doc-pinned-icon')).toBeVisible();
@@ -264,7 +264,7 @@ test.describe('Documents Grid', () => {
   test('checks all the elements are visible', async ({ page }) => {
     void page.goto('/');
 
-    let docs: SmallDoc[] = [];
+    let docs: SmallDoc[];
     const response = await page.waitForResponse(
       (response) =>
         response.url().endsWith('documents/?page=1') &&
@@ -289,8 +289,31 @@ test.describe('Documents Grid', () => {
     );
   });
 
+  test('opens a document with keyboard (Tab + Enter)', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/');
+
+    const [docTitle] = await createDoc(page, 'keyboard-nav-test', browserName);
+
+    await page.goto('/');
+    await expect(page.getByTestId('grid-loader')).toBeHidden();
+
+    const row = await getGridRow(page, docTitle);
+    const link = row.getByRole('link').first();
+
+    await link.focus();
+    await expect(link).toBeFocused();
+
+    await page.keyboard.press('Enter');
+
+    await expect(page).toHaveURL(/\/docs\//);
+    await verifyDocName(page, docTitle);
+  });
+
   test('checks the infinite scroll', async ({ page }) => {
-    let docs: SmallDoc[] = [];
+    let docs: SmallDoc[];
     const responsePromisePage1 = page.waitForResponse((response) => {
       return (
         response.url().endsWith(`/documents/?page=1`) &&

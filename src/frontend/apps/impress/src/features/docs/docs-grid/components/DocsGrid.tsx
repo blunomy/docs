@@ -16,10 +16,7 @@ import { useInfiniteDocsTrashbin } from '../api';
 import { useImport } from '../hooks/useImport';
 import { useResponsiveDocGrid } from '../hooks/useResponsiveDocGrid';
 
-import {
-  DocGridContentList,
-  DraggableDocGridContentList,
-} from './DocGridContentList';
+import { DocGridContentList } from './DocGridContentList';
 import { DocsGridLoader } from './DocsGridLoader';
 
 const Tooltip = styled(TooltipBase)`
@@ -42,16 +39,23 @@ export const DocsGrid = ({
 }: DocsGridProps) => {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
-  const { getRootProps, getInputProps, open } = useImport({
+  const {
+    getRootProps,
+    getInputProps,
+    open,
+    isPending: isImportPending,
+    isEnabled: isImportEnabled,
+  } = useImport({
     onDragOver: (dragOver: boolean) => {
       setIsDragOver(dragOver);
     },
   });
 
   const withUpload =
-    !target ||
-    target === DocDefaultFilter.ALL_DOCS ||
-    target === DocDefaultFilter.MY_DOCS;
+    (!target ||
+      target === DocDefaultFilter.ALL_DOCS ||
+      target === DocDefaultFilter.MY_DOCS) &&
+    isImportEnabled;
 
   const { isDesktop } = useResponsiveStore();
   const { flexLeft, flexRight } = useResponsiveDocGrid();
@@ -97,7 +101,7 @@ export const DocsGrid = ({
       $align="center"
       className="--docs--doc-grid"
     >
-      <DocsGridLoader isLoading={isRefetching || loading} />
+      <DocsGridLoader isLoading={isRefetching || loading || isImportPending} />
       <Card
         data-testid="docs-grid"
         $height="100%"
@@ -114,7 +118,9 @@ export const DocsGrid = ({
         $padding={{
           bottom: 'md',
         }}
-        {...(withUpload ? getRootProps({ className: 'dropzone' }) : {})}
+        {...(withUpload
+          ? getRootProps({ className: 'dropzone', tabIndex: -1 })
+          : {})}
       >
         {withUpload && <input {...getInputProps()} />}
         <DocGridTitleBar
@@ -136,41 +142,31 @@ export const DocsGrid = ({
             $overflow="auto"
             $padding={{ vertical: 'sm', horizontal: isDesktop ? 'md' : 'xs' }}
           >
-            <Box role="grid" aria-label={t('Documents grid')}>
-              <Box role="rowgroup">
-                <Box
-                  $direction="row"
-                  $padding={{ horizontal: 'xs' }}
-                  $gap="10px"
-                  data-testid="docs-grid-header"
-                  role="row"
-                >
-                  <Box $flex={flexLeft} $padding="3xs" role="columnheader">
-                    <Text $size="xs" $variation="secondary" $weight="500">
-                      {t('Name')}
+            <Box aria-label={t('Documents grid')}>
+              <Box
+                $direction="row"
+                $padding={{ horizontal: 'xs' }}
+                $gap="10px"
+                data-testid="docs-grid-header"
+                aria-hidden="true"
+              >
+                <Box $flex={flexLeft} $padding="3xs">
+                  <Text $size="xs" $variation="secondary" $weight="500">
+                    {t('Name')}
+                  </Text>
+                </Box>
+                {isDesktop && (
+                  <Box $flex={flexRight} $padding={{ vertical: '3xs' }}>
+                    <Text $size="xs" $weight="500" $variation="secondary">
+                      {DocDefaultFilter.TRASHBIN === target
+                        ? t('Days remaining')
+                        : t('Updated at')}
                     </Text>
                   </Box>
-                  {isDesktop && (
-                    <Box
-                      $flex={flexRight}
-                      $padding={{ vertical: '3xs' }}
-                      role="columnheader"
-                    >
-                      <Text $size="xs" $weight="500" $variation="secondary">
-                        {DocDefaultFilter.TRASHBIN === target
-                          ? t('Days remaining')
-                          : t('Updated at')}
-                      </Text>
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-              <Box role="rowgroup">
-                {isDesktop ? (
-                  <DraggableDocGridContentList docs={docs} />
-                ) : (
-                  <DocGridContentList docs={docs} />
                 )}
+              </Box>
+              <Box role="list">
+                <DocGridContentList docs={docs} />
               </Box>
             </Box>
             {hasNextPage && !loading && (
@@ -237,7 +233,7 @@ const DocGridTitleBar = ({
     >
       <Box $direction="row" $gap="xs" $align="center">
         {icon}
-        <Text as="h2" $size="h4" $margin="none">
+        <Text as="h2" $size="h4" $margin="none" tabIndex={-1}>
           {title}
         </Text>
       </Box>
