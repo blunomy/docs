@@ -6,10 +6,40 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- 🚸(frontend) show Crisp from the help menu #2222
+- ♿️(frontend) structure correctly 5xx error alerts #2128
+- ♿️(frontend) make doc search result labels uniquely identifiable #2212
+
+### Fixed
+
+- 🚸(frontend) redirect on current url tab after 401 #2197
+- 🐛(frontend) abort check media status unmount #2194
+- ✨(backend) order pinned documents by last updated at #2028
+- 🐛(frontend) fix app shallow reload #2231
+- 🐛(frontend) fix interlinking modal clipping #2213
+- 🛂(frontend) fix cannot manage member on small screen #2226
+- 🐛(backend) load jwks url when OIDC_RS_PRIVATE_KEY_STR is set
+
+## [v4.8.6] - 2026-04-08
+
 ### Added
 
-- 🚸(frontend) allow opening "@page" links with ctrl/command/middle-mouse click
+- 🚸(frontend) allow opening "@page" links with
+  ctrl/command/middle-mouse click #2170
 - ✅ E2E - Any instance friendly #2142
+
+### Changed
+
+- ♻️(backend) do not paginate threads list response #2186
+- 💄(frontend) Use StyledLink for sub doc tree #2188
+
+### Fixed
+
+- 🐛(frontend) Fix drop cursor creating columns #2185
+- 🐛 Fixed side effects between comments and versioning #2183
+- 🐛(frontend) Firefox child doc visual #2188
 
 ## [v4.8.5] - 2026-04-03
 
@@ -29,7 +59,7 @@ and this project adheres to
 - ⚡️(frontend) add jitter to WS reconnection #2162
 - 🐛(frontend) fix tree pagination #2145
 - 🐛(nginx) add page reconciliation on nginx #2154
-
+- 🐛(backend) fix race condition in reconciliation requests CSV import #2153
 
 ## [v4.8.4] - 2026-03-25
 
@@ -50,6 +80,10 @@ and this project adheres to
 
 - 🐛(y-provider) destroy Y.Doc instances after each convert request #2129
 - 🐛(backend) remove deleted sub documents in favorite_list endpoint #2083
+
+### Fixed
+
+- 🐛(backend) create_for_owner: add accesses before saving doc content #2124
 
 ## [v4.8.3] - 2026-03-23
 
@@ -1218,7 +1252,8 @@ and this project adheres to
 - ✨(frontend) Coming Soon page (#67)
 - 🚀 Impress, project to manage your documents easily and collaboratively.
 
-[unreleased]: https://github.com/suitenumerique/docs/compare/v4.8.5...main
+[unreleased]: https://github.com/suitenumerique/docs/compare/v4.8.6...main
+[v4.8.6]: https://github.com/suitenumerique/docs/releases/v4.8.6
 [v4.8.5]: https://github.com/suitenumerique/docs/releases/v4.8.5
 [v4.8.4]: https://github.com/suitenumerique/docs/releases/v4.8.4
 [v4.8.3]: https://github.com/suitenumerique/docs/releases/v4.8.3

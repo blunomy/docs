@@ -53,10 +53,7 @@ const AIMenu = BlockNoteAI?.AIMenu;
 const AIMenuController = BlockNoteAI?.AIMenuController;
 const useAI = BlockNoteAI?.useAI;
 const localesBNAI = BlockNoteAI?.localesAI || {};
-import {
-  InterlinkingLinkInlineContent,
-  InterlinkingSearchInlineContent,
-} from './custom-inline-content';
+import { InterlinkingLinkInlineContent } from './custom-inline-content';
 import XLMultiColumn from './xl-multi-column';
 
 const localesBNMultiColumn = XLMultiColumn?.locales;
@@ -74,7 +71,6 @@ const baseBlockNoteSchema = withPageBreak(
     },
     inlineContentSpecs: {
       ...defaultInlineContentSpecs,
-      interlinkingSearchInline: InterlinkingSearchInlineContent,
       interlinkingLinkInline: InterlinkingLinkInlineContent,
     },
   }),
@@ -303,11 +299,13 @@ export const BlockNoteEditor = ({ doc, provider }: BlockNoteEditorProps) => {
 interface BlockNoteReaderProps {
   docId: Doc['id'];
   initialContent: Y.XmlFragment;
+  isMainEditor?: boolean;
 }
 
 export const BlockNoteReader = ({
   docId,
   initialContent,
+  isMainEditor = true,
 }: BlockNoteReaderProps) => {
   const { user } = useAuth();
   const { setEditor } = useEditorStore();
@@ -336,12 +334,19 @@ export const BlockNoteReader = ({
   );
 
   useEffect(() => {
+    if (!isMainEditor) {
+      return;
+    }
+
     setEditor(editor);
 
     return () => {
+      if (!isMainEditor) {
+        return;
+      }
       setEditor(undefined);
     };
-  }, [setEditor, editor]);
+  }, [setEditor, editor, isMainEditor]);
 
   useHeadings(editor);
 

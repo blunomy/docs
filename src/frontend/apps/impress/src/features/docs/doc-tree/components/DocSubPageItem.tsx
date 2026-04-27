@@ -1,3 +1,4 @@
+import { ButtonElement } from '@gouvfr-lasuite/cunningham-react';
 import {
   Spinner,
   TreeViewDataType,
@@ -11,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
-import { Box, BoxButton, Icon, Text } from '@/components';
+import { Box, Icon, StyledLink, Text } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
 import {
   Doc,
@@ -159,7 +160,7 @@ const DocSubPageItemContent = (props: TreeViewNodeProps<Doc>) => {
   const ariaLabel = docTitle;
   const isDisabled = !!doc.deleted_at;
   const actionsRef = useRef<HTMLDivElement>(null);
-  const buttonOptionRef = useRef<HTMLButtonElement | null>(null);
+  const buttonOptionRef = useRef<ButtonElement | null>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
@@ -203,9 +204,12 @@ const DocSubPageItemContent = (props: TreeViewNodeProps<Doc>) => {
           display: ${menuOpen || !isDesktop ? 'flex' : 'none'};
           right: var(--c--globals--spacings--0);
         }
+        .c__tree-view--node {
+          padding-right: var(--c--globals--spacings--xxxs);
+          height: 32px;
+        }
         .c__tree-view--node.isFocused {
           outline: none !important;
-          box-shadow: 0 0 0 2px var(--c--globals--colors--brand-500) !important;
           border-radius: var(--c--globals--spacings--st);
           .light-doc-item-actions {
             display: flex;
@@ -279,17 +283,12 @@ const DocSubPageItemContent = (props: TreeViewNodeProps<Doc>) => {
             buttonOptionRef={buttonOptionRef}
           />
         </Box>
-        <BoxButton
-          onClick={(e) => {
-            e.stopPropagation();
-            handleActivate();
+        <StyledLink
+          href={`/docs/${doc.id}`}
+          onClick={() => {
+            treeContext?.treeData.setSelectedNode(doc);
           }}
           tabIndex={-1}
-          $width="100%"
-          $direction="row"
-          $gap={spacingsTokens['xs']}
-          $align="center"
-          $minHeight="24px"
           data-testid={`doc-sub-page-item-${doc.id}`}
           aria-label={`${t('Open document {{title}}', { title: docTitle })}`}
           $css={css`
@@ -300,6 +299,8 @@ const DocSubPageItemContent = (props: TreeViewNodeProps<Doc>) => {
           <Box
             $direction="row"
             $align="center"
+            $gap={spacingsTokens['xs']}
+            $minHeight="24px"
             $css={css`
               display: flex;
               flex-direction: row;
@@ -322,7 +323,7 @@ const DocSubPageItemContent = (props: TreeViewNodeProps<Doc>) => {
               />
             )}
           </Box>
-        </BoxButton>
+        </StyledLink>
       </TreeViewItem>
     </Box>
   );

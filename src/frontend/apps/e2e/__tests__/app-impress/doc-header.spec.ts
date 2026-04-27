@@ -179,7 +179,8 @@ test.describe('Doc Header', () => {
     await optionMenu.click();
     await expect(removeEmojiMenuItem).toBeHidden();
     await addEmojiMenuItem.click();
-    await expect(emojiPicker).toHaveText('📄');
+    // The 1 April the emoji is a fish
+    await expect(emojiPicker).toHaveText(/📄|🐟/);
 
     // Change emoji
     await emojiPicker.click({
@@ -603,7 +604,7 @@ test.describe('Doc Header', () => {
 
     await expect(row.getByText(duplicateTitle)).toBeVisible();
 
-    await row.getByText(`more_horiz`).click();
+    await row.getByRole('button', { name: /Open the menu of actions/ }).click();
     await page.getByRole('menuitem', { name: 'Duplicate' }).click();
     const duplicateDuplicateTitle = 'Copy of ' + duplicateTitle;
     await page.getByText(duplicateDuplicateTitle).click();
@@ -633,7 +634,7 @@ test.describe('Doc Header', () => {
         hasText: childTitle,
       });
     await child.hover();
-    await child.getByText(`more_horiz`).click();
+    await child.getByRole('button', { name: /More options/ }).click();
 
     const currentUrl = page.url();
 

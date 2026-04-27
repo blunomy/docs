@@ -1,6 +1,6 @@
 {
   "name": "server-y-provider",
-  "version": "4.8.5",
+  "version": "4.8.6",
   "description": "Y.js provider for docs",
   "repository": "https://github.com/suitenumerique/docs",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "@sentry/node": "10.45.0",
     "@sentry/profiling-node": "10.45.0",
     "@tiptap/extensions": "*",
-    "axios": "1.13.6",
+    "axios": "1.15.0",
     "cors": "2.8.6",
     "express": "5.2.1",
     "express-ws": "5.0.2",

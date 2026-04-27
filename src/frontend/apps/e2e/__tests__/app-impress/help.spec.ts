@@ -2,11 +2,129 @@ import { expect, test } from '@playwright/test';
 
 import {
   TestLanguage,
+  getCurrentConfig,
   overrideConfig,
   waitForLanguageSwitch,
 } from './utils-common';
 
 test.describe('Help feature', () => {
+  test.describe('Documentation button', () => {
+    if (process.env.IS_INSTANCE !== 'true') {
+      test('is not displayed if documentation_url is not set', async ({
+        page,
+      }) => {
+        await overrideConfig(page, {
+          theme_customization: {
+            help: {
+              documentation_url: '',
+            },
+            onboarding: {
+              enabled: true,
+            },
+          },
+        });
+
+        await page.goto('/');
+
+        await page.getByRole('button', { name: 'Open help menu' }).click();
+        await expect(
+          page.getByRole('menuitem', { name: 'Documentation' }),
+        ).toBeHidden();
+      });
+    }
+
+    test('is displayed if documentation_url is set', async ({ page }) => {
+      let documentationUrl: string;
+
+      if (process.env.IS_INSTANCE !== 'true') {
+        documentationUrl = `${process.env.BASE_URL}/docs/`;
+        await overrideConfig(page, {
+          theme_customization: {
+            help: {
+              documentation_url: documentationUrl,
+            },
+          },
+        });
+      } else {
+        const currentConfig = await getCurrentConfig(page);
+        test.skip(
+          !currentConfig.theme_customization?.help?.documentation_url,
+          'Documentation URL is not set',
+        );
+        documentationUrl =
+          currentConfig.theme_customization.help.documentation_url;
+      }
+
+      await page.goto('/');
+
+      await page.getByRole('button', { name: 'Open help menu' }).click();
+      const docMenuItem = page.getByRole('menuitem', { name: 'Documentation' });
+      await expect(docMenuItem).toBeVisible();
+
+      const [newPage] = await Promise.all([
+        page.context().waitForEvent('page'),
+        docMenuItem.click(),
+      ]);
+
+      await expect(newPage).toHaveURL(documentationUrl);
+    });
+  });
+
+  test.describe('Support button', () => {
+    if (process.env.IS_INSTANCE !== 'true') {
+      test('is not displayed if CRISP_WEBSITE_ID is not set', async ({
+        page,
+      }) => {
+        await overrideConfig(page, {
+          CRISP_WEBSITE_ID: '',
+        });
+
+        await page.goto('/');
+
+        await page.getByRole('button', { name: 'Open help menu' }).click();
+        await expect(
+          page.getByRole('menuitem', { name: 'Get Support' }),
+        ).toBeHidden();
+      });
+
+      test('is displayed if CRISP_WEBSITE_ID is set', async ({ page }) => {
+        await overrideConfig(page, {
+          CRISP_WEBSITE_ID: 'test_website_id',
+        });
+
+        await page.goto('/');
+
+        await page.getByRole('button', { name: 'Open help menu' }).click();
+        await expect(
+          page.getByRole('menuitem', {
+            name: 'Get Support',
+          }),
+        ).toBeVisible();
+      });
+    }
+
+    if (process.env.IS_INSTANCE === 'true') {
+      test('it displays Crisp chatbox', async ({ page }) => {
+        const currentConfig = await getCurrentConfig(page);
+        test.skip(
+          !currentConfig.CRISP_WEBSITE_ID,
+          'Crisp chatbox is not enabled',
+        );
+        await page.goto('/');
+
+        await page.getByRole('button', { name: 'Open help menu' }).click();
+        await page
+          .getByRole('menuitem', {
+            name: 'Get Support',
+          })
+          .click();
+
+        const crispElement = page.locator('#crisp-chatbox');
+        await expect(crispElement).toBeAttached();
+      });
+    }
+  });
+
   test.describe('Onboarding modal', () => {
     test('Help menu not displayed if onboarding is disabled', async ({
       page,

@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "impress"
-version = "4.8.5"
+version = "4.8.6"
 authors = [{ "name" = "DINUM", "email" = "dev@mail.numerique.gouv.fr" }]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -50,7 +50,7 @@ dependencies = [
     "gunicorn==25.1.0",
     "jsonschema==4.26.0",
     "langfuse==3.11.2",
-    "lxml==6.0.2",
+    "lxml==6.1.0",
     "markdown==3.10.2",
     "mozilla-django-oidc==5.0.2",
     "nested-multipart-parser==1.6.0",
