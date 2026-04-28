@@ -2,7 +2,7 @@ server {
   listen ${PORT};
   server_name localhost;
 
-  root /usr/share/nginx/html;
+  root /app;
 
   proxy_ssl_server_name on;
   client_max_body_size 10m;
