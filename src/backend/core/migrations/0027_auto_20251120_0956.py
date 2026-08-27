@@ -11,10 +11,12 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             sql="""
+                CREATE EXTENSION IF NOT EXISTS unaccent;
+
                 CREATE OR REPLACE FUNCTION public.f_unaccent(text)
                 RETURNS text
-                LANGUAGE sql IMMUTABLE PARALLEL SAFE strict
-                return unaccent($1);
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+                RETURN unaccent($1);
 
                 CREATE INDEX IF NOT EXISTS user_email_unaccent_trgm_idx
                 ON impress_user

@@ -74,7 +74,7 @@ USER ${DOCKER_USER}
 
 COPY --from=frontend-source /app /app
 
-COPY ./src/frontend/apps/impress/conf/default.conf /etc/nginx/conf.d
+COPY ./blunomy-conf/src/frontend/apps/impress/conf/blunomy.template /etc/nginx/templates/default.conf.template
 COPY ./docker/files/usr/local/bin/entrypoint /usr/local/bin/entrypoint
 
 ENTRYPOINT [ "/usr/local/bin/entrypoint" ]

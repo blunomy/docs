@@ -21,11 +21,12 @@ const Page: NextPageWithLayout = () => {
    * If the user is authenticated we redirect him to the index page (grid).
    */
   useEffect(() => {
-    if (!authenticated) {
-      return;
+    if (authenticated) {
+      void replace('/');
+    } else {
+      // If not authenticated, go to login page
+      gotoLogin();
     }
-
-    void replace('/');
   }, [authenticated, replace]);
 
   /**
