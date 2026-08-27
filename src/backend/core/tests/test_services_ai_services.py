@@ -3,6 +3,8 @@ Test AI services in the impress core app.
 """
 # pylint: disable=protected-access
 
+import json
+import warnings
 from collections.abc import AsyncIterator
 from unittest.mock import MagicMock, patch
 
@@ -10,13 +12,24 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 
 import pytest
-from openai import OpenAIError
+from mistralai.client import Mistral
+from openai import OpenAI, OpenAIError
+from pydantic_ai.capabilities import Instrumentation
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.mistral import MistralModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.ui.vercel_ai.request_types import TextUIPart, UIMessage
 
-from core.services.ai_services import (
+from core.services.ai_services.blocknote import (
     BLOCKNOTE_TOOL_STRICT_PROMPT,
     AIService,
+    configure_pydantic_model_provider,
     convert_async_generator_to_sync,
+)
+from core.services.ai_services.legacy import (
+    LegacyAiServiceMistralClient,
+    LegacyAiServiceOpenAiClient,
+    get_legacy_ai_service,
 )
 
 pytestmark = pytest.mark.django_db
@@ -26,35 +39,129 @@ pytestmark = pytest.mark.django_db
 def ai_settings(settings):
     """Fixture to set AI settings."""
     settings.AI_MODEL = "llama"
-    settings.AI_BASE_URL = "http://example.com"
-    settings.AI_API_KEY = "test-key"
+    settings.OPENAI_SDK_BASE_URL = "http://example.com"
+    settings.OPENAI_SDK_API_KEY = "test-key"
     settings.AI_FEATURE_ENABLED = True
     settings.AI_FEATURE_BLOCKNOTE_ENABLED = True
     settings.AI_FEATURE_LEGACY_ENABLED = True
     settings.LANGFUSE_PUBLIC_KEY = None
     settings.AI_VERCEL_SDK_VERSION = 6
+    yield
+    configure_pydantic_model_provider.cache_clear()
+    get_legacy_ai_service.cache_clear()
 
 
-# -- AIService.__init__ --
+# -- AIService configure sdk--
 
 
 @pytest.mark.parametrize(
     "setting_name, setting_value",
     [
-        ("AI_BASE_URL", None),
-        ("AI_API_KEY", None),
+        ("OPENAI_SDK_BASE_URL", None),
+        ("OPENAI_SDK_API_KEY", None),
         ("AI_MODEL", None),
     ],
 )
-def test_services_ai_setting_missing(setting_name, setting_value, settings):
-    """Setting should be set"""
+def test_ai_services_configure_open_ai_leagcy_client_missing_settings(
+    setting_name, setting_value, settings
+):
+    """
+    An exception must be raised if an expected settings is missing to configure the openai sdk.
+    """
     setattr(settings, setting_name, setting_value)
 
     with pytest.raises(
         ImproperlyConfigured,
         match="AI configuration not set",
     ):
-        AIService()
+        LegacyAiServiceOpenAiClient()
+
+
+def test_ai_services_configure_open_ai_leagcy_client(settings):
+    """With all required settings the OpenAi legacy client should be configured."""
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = "http://example.com"
+    settings.OPENAI_SDK_API_KEY = "test-key"
+
+    legacy_openai_client = LegacyAiServiceOpenAiClient()
+
+    assert isinstance(legacy_openai_client.client, OpenAI)
+
+
+@pytest.mark.parametrize(
+    "setting_name, setting_value",
+    [
+        ("MISTRAL_SDK_BASE_URL", None),
+        ("MISTRAL_SDK_API_KEY", None),
+        ("AI_MODEL", None),
+    ],
+)
+def test_ai_services_configure_mistral_sdk_leagcy_client_missing_settings(
+    setting_name, setting_value, settings
+):
+    """
+    An exception must be raised if an expected settings is missing to configure the openai sdk.
+    """
+    settings.OPENAI_SDK_BASE_URL = None
+    settings.OPENAI_SDK_API_KEY = None
+    setattr(settings, setting_name, setting_value)
+
+    with pytest.raises(
+        ImproperlyConfigured,
+        match="Mistral sdk configuration not set",
+    ):
+        LegacyAiServiceMistralClient()
+
+
+def test_ai_services_configure_mistral_sdk_legacy_client(settings):
+    """With all required settings the Mistral sdk legacy client should be configured."""
+
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = None
+    settings.OPENAI_SDK_API_KEY = None
+    settings.MISTRAL_SDK_API_KEY = "mistreal-sdk-key"
+    settings.MISTRAL_SDK_BASE_URL = "https://mistral.base-url.com"
+
+    legacy_mistral_client = LegacyAiServiceMistralClient()
+
+    assert isinstance(legacy_mistral_client.client, Mistral)
+
+
+def test_ai_services_configure_pydantic_ai_model_openai(settings):
+    """When openai sdk settings are configured it should return an OpenAiChatModel."""
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = "http://example.com"
+    settings.OPENAI_SDK_API_KEY = "test-key"
+
+    pydantic_ai_model = configure_pydantic_model_provider()
+    assert isinstance(pydantic_ai_model, OpenAIChatModel)
+
+
+def test_ai_services_configure_pydantic_ai_model_mistral(settings):
+    """When mistral sdk settings are configured is should return a MistralModel."""
+    settings.AI_MODEL = "llama"
+    settings.OPENAI_SDK_BASE_URL = None
+    settings.OPENAI_SDK_API_KEY = None
+    settings.MISTRAL_SDK_API_KEY = "mistreal-sdk-key"
+    settings.MISTRAL_SDK_BASE_URL = "https://mistral.base-url.com"
+
+    pydantic_ai_model = configure_pydantic_model_provider()
+    assert isinstance(pydantic_ai_model, MistralModel)
+
+
+def test_ai_services_configure_pydantic_ai_model_no_settings(settings):
+    """When no settings are configured for a ai sdk it should raises an exception."""
+    settings.AI_MODEL = None
+    settings.OPENAI_SDK_BASE_URL = None
+    settings.OPENAI_SDK_API_KEY = None
+    settings.MISTRAL_SDK_API_KEY = None
+    settings.MISTRAL_SDK_BASE_URL = None
+
+    with pytest.raises(
+        ImproperlyConfigured,
+        match="AI configuration not set",
+    ):
+        configure_pydantic_model_provider()
 
 
 # -- AIService.transform --
@@ -73,7 +180,7 @@ def test_services_ai_client_error(mock_create):
         OpenAIError,
         match="Mocked client error",
     ):
-        AIService().transform("hello", "prompt")
+        get_legacy_ai_service().transform("hello", "prompt")
 
 
 @override_settings(
@@ -91,7 +198,7 @@ def test_services_ai_client_invalid_response(mock_create):
         RuntimeError,
         match="AI response does not contain an answer",
     ):
-        AIService().transform("hello", "prompt")
+        get_legacy_ai_service().transform("hello", "prompt")
 
 
 @override_settings(
@@ -105,7 +212,7 @@ def test_services_ai_success(mock_create):
         choices=[MagicMock(message=MagicMock(content="Salut"))]
     )
 
-    response = AIService().transform("hello", "prompt")
+    response = get_legacy_ai_service().transform("hello", "prompt")
 
     assert response == {"answer": "Salut"}
 
@@ -121,7 +228,7 @@ def test_services_ai_translate_success(mock_create):
         choices=[MagicMock(message=MagicMock(content="Bonjour"))]
     )
 
-    response = AIService().translate("<p>Hello</p>", "fr")
+    response = get_legacy_ai_service().translate("<p>Hello</p>", "fr")
 
     assert response == {"answer": "Bonjour"}
     call_args = mock_create.call_args
@@ -137,7 +244,7 @@ def test_services_ai_translate_unknown_language(mock_create):
         choices=[MagicMock(message=MagicMock(content="Translated"))]
     )
 
-    response = AIService().translate("<p>Hello</p>", "xx-unknown")
+    response = get_legacy_ai_service().translate("<p>Hello</p>", "xx-unknown")
 
     assert response == {"answer": "Translated"}
     call_args = mock_create.call_args
@@ -448,7 +555,7 @@ def test_services_ai_stream_defaults_to_sync(mock_build, monkeypatch):
 # -- AIService._build_async_stream --
 
 
-@patch("core.services.ai_services.VercelAIAdapter")
+@patch("core.services.ai_services.blocknote.VercelAIAdapter")
 def test_services_ai_build_async_stream(mock_adapter_cls):
     """_build_async_stream should build the pydantic-ai streaming pipeline."""
 
@@ -477,8 +584,11 @@ def test_services_ai_build_async_stream(mock_adapter_cls):
     mock_adapter_instance.encode_stream.assert_called_once()
 
 
-@patch("core.services.ai_services.VercelAIAdapter")
-def test_services_ai_build_async_stream_with_tool_definitions(mock_adapter_cls):
+@patch("core.services.ai_services.blocknote.Agent")
+@patch("core.services.ai_services.blocknote.VercelAIAdapter")
+def test_services_ai_build_async_stream_with_tool_definitions(
+    mock_adapter_cls, mock_agent_cls
+):
     """_build_async_stream should build an ExternalToolset when
     toolDefinitions are present in the request."""
 
@@ -512,14 +622,21 @@ def test_services_ai_build_async_stream_with_tool_definitions(mock_adapter_cls):
     call_kwargs = mock_adapter_instance.run_stream.call_args[1]
     assert call_kwargs["toolsets"] is not None
     assert len(call_kwargs["toolsets"]) == 1
+    # tools other than applyDocumentOperations don't harden the prompt
+    assert mock_agent_cls.call_args[1]["instructions"] is None
 
 
-@patch("core.services.ai_services.VercelAIAdapter")
+@patch("core.services.ai_services.blocknote.Agent")
+@patch("core.services.ai_services.blocknote.VercelAIAdapter")
 def test_services_ai_build_async_stream_with_tool_definitions_required_system_prompt(
-    mock_adapter_cls,
+    mock_adapter_cls, mock_agent_cls
 ):
     """The presence of the applyDocumentOperations tool must force the addition
-    of a system prompt"""
+    of agent instructions.
+
+    They can't be passed as a client message: the adapter runs with
+    `manage_system_prompt="server"` and strips client-submitted system prompts.
+    """
 
     async def mock_encode():
         yield "event-data"
@@ -551,18 +668,70 @@ def test_services_ai_build_async_stream_with_tool_definitions_required_system_pr
     call_kwargs = mock_adapter_instance.run_stream.call_args[1]
     assert call_kwargs["toolsets"] is not None
     assert len(call_kwargs["toolsets"]) == 1
-    assert len(mock_run_input.messages) == 1
-    assert mock_run_input.messages[0].id == "system-force-tool-usage"
-    assert mock_run_input.messages[0].role == "system"
-    assert mock_run_input.messages[0].parts[0].text == BLOCKNOTE_TOOL_STRICT_PROMPT
+    assert not mock_run_input.messages
+    mock_agent_cls.assert_called_once()
+    assert mock_agent_cls.call_args[1]["instructions"] == BLOCKNOTE_TOOL_STRICT_PROMPT
 
 
-@patch("core.services.ai_services.Agent")
-@patch("core.services.ai_services.VercelAIAdapter")
+@pytest.mark.asyncio
+async def test_services_ai_build_async_stream_strict_prompt_reaches_the_model():
+    """The hardened prompt must survive the adapter and be sent to the model.
+
+    Client-submitted system prompts are stripped by the adapter, so a regression
+    to a message-based injection would silently drop the prompt.
+    """
+    captured = []
+
+    async def capture_stream(messages, _info):
+        captured.append(messages)
+        yield "ok"
+
+    raw_body = json.dumps(
+        {
+            "id": "run-1",
+            "trigger": "submit-message",
+            "messages": [
+                {
+                    "id": "message-1",
+                    "role": "user",
+                    "parts": [{"type": "text", "text": "hello"}],
+                }
+            ],
+            "toolDefinitions": {
+                "applyDocumentOperations": {
+                    "description": "A tool",
+                    "inputSchema": {"type": "object"},
+                }
+            },
+        }
+    ).encode()
+
+    request = MagicMock()
+    request.META = {}
+    request.raw_body = raw_body
+
+    with patch(
+        "core.services.ai_services.blocknote.configure_pydantic_model_provider",
+        return_value=FunctionModel(stream_function=capture_stream),
+    ):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            async for _ in AIService()._build_async_stream(request):
+                pass
+
+    assert not [str(warning.message) for warning in caught]
+
+    assert len(captured) == 1
+    # pydantic-ai strips the surrounding whitespace of the instructions
+    assert captured[0][0].instructions == BLOCKNOTE_TOOL_STRICT_PROMPT.strip()
+
+
+@patch("core.services.ai_services.blocknote.Agent")
+@patch("core.services.ai_services.blocknote.VercelAIAdapter")
 def test_services_ai_build_async_stream_langfuse_enabled(
     mock_adapter_cls, mock_agent_cls, settings
 ):
-    """When LANGFUSE_PUBLIC_KEY is set, instrument should be enabled."""
+    """When LANGFUSE_PUBLIC_KEY is set, instrumentation should be enabled."""
     settings.LANGFUSE_PUBLIC_KEY = "pk-test-123"
 
     async def mock_encode():
@@ -584,7 +753,38 @@ def test_services_ai_build_async_stream_langfuse_enabled(
     request.raw_body = b"{}"
 
     service._build_async_stream(request)
-    mock_agent_cls.instrument_all.assert_called_once()
-    # Agent should be created with instrument=True
+    # Agent should be created with the Instrumentation capability
     mock_agent_cls.assert_called_once()
-    assert mock_agent_cls.call_args[1]["instrument"] is True
+    capabilities = mock_agent_cls.call_args[1]["capabilities"]
+    assert len(capabilities) == 1
+    assert isinstance(capabilities[0], Instrumentation)
+
+
+@patch("core.services.ai_services.blocknote.Agent")
+@patch("core.services.ai_services.blocknote.VercelAIAdapter")
+def test_services_ai_build_async_stream_langfuse_disabled(
+    mock_adapter_cls, mock_agent_cls
+):
+    """When LANGFUSE_PUBLIC_KEY is not set, no capability should be added."""
+
+    async def mock_encode():
+        yield "data"
+
+    mock_run_input = MagicMock()
+    mock_run_input.model_extra = None
+    mock_run_input.messages = []
+    mock_adapter_cls.build_run_input.return_value = mock_run_input
+
+    mock_adapter_instance = MagicMock()
+    mock_adapter_instance.run_stream.return_value = MagicMock()
+    mock_adapter_instance.encode_stream.return_value = mock_encode()
+    mock_adapter_cls.return_value = mock_adapter_instance
+
+    service = AIService()
+    request = MagicMock()
+    request.META = {}
+    request.raw_body = b"{}"
+
+    service._build_async_stream(request)
+    mock_agent_cls.assert_called_once()
+    assert mock_agent_cls.call_args[1]["capabilities"] is None

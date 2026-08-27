@@ -6,6 +6,7 @@ import {
   randomName,
   verifyDocName,
 } from './utils-common';
+import { openSuggestionMenu } from './utils-editor';
 import { connectOtherUserToDoc } from './utils-share';
 import { SignIn } from './utils-signin';
 
@@ -17,10 +18,9 @@ test.describe('Doc Create', () => {
   test('it creates a doc', async ({ page, browserName }) => {
     const [docTitle] = await createDoc(page, 'my-new-doc', browserName, 1);
 
-    await page.waitForFunction(
-      () => document.title.match(/my-new-doc - Docs/),
-      { timeout: 5000 },
-    );
+    await page.waitForFunction(() => document.title.match(/my-new-doc/), {
+      timeout: 5000,
+    });
 
     await page.getByRole('button', { name: 'Back to homepage' }).click();
 
@@ -28,6 +28,22 @@ test.describe('Doc Create', () => {
     await expect(docsGrid).toBeVisible();
     await expect(page.getByTestId('grid-loader')).toBeHidden();
     await expect(docsGrid.getByText(docTitle)).toBeVisible();
+  });
+
+  test('it creates a sub doc from the submenu "New" button', async ({
+    page,
+    browserName,
+  }) => {
+    await createDoc(page, 'my-new-button-sub-doc', browserName, 1);
+
+    await page.getByLabel('Open new document options').click();
+    await page.getByRole('menuitem', { name: 'New sub-doc' }).click();
+
+    const input = page.getByRole('textbox', { name: 'Document title' });
+    await expect(input).toHaveText('', { timeout: 10000 });
+    await expect(
+      page.locator('.c__tree-view--row-content').getByText('Untitled document'),
+    ).toBeVisible();
   });
 
   test('it creates a sub doc from slash menu editor', async ({
@@ -38,12 +54,10 @@ test.describe('Doc Create', () => {
 
     await verifyDocName(page, title);
 
-    await page.locator('.bn-block-outer').last().fill('/');
-    await page
-      .getByText('New sub-doc', {
-        exact: true,
-      })
-      .click();
+    await openSuggestionMenu({
+      page,
+      suggestion: 'New sub-doc',
+    });
 
     const input = page.getByRole('textbox', { name: 'Document title' });
     await expect(input).toHaveText('', { timeout: 10000 });

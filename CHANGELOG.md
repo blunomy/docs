@@ -6,11 +6,218 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(frontend) Add "Copy link to block" feature #2547
+
 ### Changed
 
+- ♿️(frontend) use anchor links for interlinking sub-documents #2391
+- ✨(frontend) reset side panel state between documents #2583
+- ♿️(frontend) announce search loading state for screen readers #2526
+- ♻️(frontend) change favorite to star #2539
+
+### Fixed
+
+- 🐛(frontend) fix clipped formatting toolbar in new comment composer #2585
+- 📄(frontend) allowed partially export when MIT #2551
+
+## [v5.5.0] - 2026-08-24
+
+### Added
+
+- ♿️(frontend) restore skip to content link after header redesign #2510
+- 🌐(i18n) rename cn_CN to zh_CN, add eo_PL and zh_TW locales #2486
+- ✨(backend) conditional email notification in server to server api #2554
+- ✨(backend) profile api using django-silk #2594
+
+### Changed
+
+- ♿️(frontend) use semantic `<dl>` structure in document info card #2379
+- ⚡️(frontend) replace onboarding assets with webm and webp #2569
+- 💄(frontend) use the same highlight color for cells and moves #2575
+- ⚡️(backend) optimize media_auth endpoint #2594
+- 🚸(frontend) print from document options menu #2550
+- ♻️(frontend) refacto of the grid documents #2534
+
+### Fixed
+
+- 🐛(frontend) refresh pins after document deletion and restoration #2581
+- 🐛(frontend) redirect homepage to login when homepage feat is disabled #2521
+- 🐛(backend) ignore CSPs for API docs in development #2538
+- 🐛(frontend) export images embedded with a relative url #2573
+- 🐛(y-provider) fix sentry init #2579
+- 🐛(backend) handle object storage metadata keys case-insensitively #2576
+- 🐛(keycloak) fix database env variables in the self-hosting example #2572
+- 🐛(helm) show the database error while jobs wait for it to be ready #2578
+
+## [v5.4.1] - 2026-07-09
+
+### Changed
+
+- ♻️(backend) reset collaboration connection in cascade for all children #2507
+
+### Fixed
+
+- 💄(frontend) fix some UI/UX in the left panel #2516
+- 🐛(frontend) fix tree dnd firefox #2516
+
+## [v5.4.0] - 2026-07-07
+
+### Added
+
+- ✨(y-provider) preserve callouts, PDFs, page breaks, interlinking
+  links and commented text on HTML/markdown export #2296
+- ✨(frontend) add a user menu #2463
+- ✨(frontend) new header and responsive harmonization #2471
+- ✨(backend) add management command to reset a Document #1882
+
+### Changed
+
+- ♿️(frontend) hide mobile left panel from screen readers when collapsed #2450
+- ♿️(frontend) enable blocknote heading ids for toc anchors #2449
+- ♿️(frontend) focus export modal on format select #2421
+- ♿️(frontend) configurable legal submenu in HelpMenu, remove Crisp #2416
+- ♻️(frontend) new create button for docs #2423
+- ♿️(frontend) align search modal field label with placeholder #2384
+- 🚚(frontend) move Waffle to bottom left #2455
+- ♿️(frontend) remove redundant aria-label on table of contents links #2459
+- ♻️(core) fix typo in settings COLLABORATION_WS_NOT_CONNECTED_READY_ONLY #2481
+- ♻️(backend) scope document search by document id instead of path #2501
+
+### Fixed
+
+- 🐛(backend) prevent owner from leaving a soft-deleted document #2456
+- 🐛(frontend) fix removed item in the tree #2420
+- 🐛(frontend) fix service worker causing reload on tab focus #2454
+- 🐛(backend) update restore ability for inherited deletion #2148
+- 🔧(dev) make the dev stack domain-agnostic #2498
+- 🐛(frontend) stop force index redirect when delete doc #2490
+- 🐛(frontend) fix CTA on move modal on mobile #2502
+
+### Removed
+
+- 🔥(backend) remove unused default authentication backend #2480
+
+## [v5.3.0] - 2026-06-19
+
+### Added
+
+- ✨(backend) add limit on distinct reactions per comment #1978
+- ✨(frontend) leave a document #2410
+- ✨(frontend) add top parent on sub docs search #1952
+- ✨(frontend) unauthenticated users can search #2407
+- ✨(backend) specific user delete method to delete its relations #2437
+
+### Changed
+
+- 👷(CI) remove test-e2e-other-browser job #2404
+- ♿️(frontend) use heading element for pinned documents section title #2380
+- ♿️(frontend) use anchor links for table of contents entries #2390
+- ♿️(frontend) improve presenter mode screen reader and keyboard support #2383
+- ♿️(frontend) link export modal name to its heading #2422
+
+### Fixed
+
+- 🐛(frontend) overlap of block menu dropdown #2406
+- ⚡️(backend) fix N+1 queries when serializing thread comments #2415
+
+## [v5.2.1] - 2026-06-05
+
+### Changed
+
+- 💄(frontend) display emoji button on hover #2396
+
+### Fixed
+
+- 🐛(backend) close thread DB connections to fix test teardown
+  OperationalError #2385
+- 🐛(frontend) fix crash when orphaned threads #2395
+- 🐛(backend) order trashbin response by most recently deleted #2392
+- 🐛(backend) stream document content with an async iterator under ASGI #2381
+- 🐛(frontend) fix long titles in table of content #2399
+
+## [v5.2.0] - 2026-06-03
+
+### Added
+
+- ✨(backend) support creating subdoc from file #1987
+- ✨(frontend) comment side panel #2279
+- ✨(buildpack) add PaaS deployment support, tested with Scalingo #2293
+- 🔧(backend) allow configuring settings OIDC_OP_USER_ENDPOINT_FORMAT #2306
+- ⚡️(helm) create a dedicated svc and deployment for yprovider converter #2358
+- ✨(backend) allow to leave a document #2365
+- ✨(frontend) add the presenter mode #2321
+- 📈(backend) create a utils to capture event with posthog #2363
+- 🔧(backend) new setting DOCUMENT_ALL_ENDPOINT_ENABLED #2378
+
+### Changed
+
+- ♻️(frontend) centralize allowed conversion formats in ContentTypes #2215
+- ♻️(backend) allow global search in sub documents #2310
+- ✨(backend) add a breadcrumb in the search response #2310
+- ♻️(frontend) move doc action buttons to fix toolbar #2360
+- ♿️(frontend) add aria-hidden to decorative avatar SVGs in share modal #2324
+- 🏗️(frontend) move comments to its own folder feature #2374
+- ♿️(frontend) align mobile header menu aria-label i18n pattern #2377
+
+### Fixed
+
+- 🐛(docs) run migration 0027 without superuser role #2284
+- 🐛(backend) prevent admins/owners from overwriting other users comments #2323
+- 🐛(y-provider) return empty output when converting empty Yjs document #2328
+- 🐛(backend) use computed_link_reach in handle_onboarding_document #2305
+- 🐛(frontend) fix toolbar blocknote hidden #2373
+- 🐛(frontend) fix application crashes when using GTranslate and zoom #2372
+- 🐛(frontend) fix emoji pdf not matching #2375
+- 🐛(backend) fix UnorderedObjectListWarning for DocumentAskForAccess
+  viewset #2382
+
+## [v5.1.0] - 2026-05-11
+
+### Added
+
+- ⚡️(frontend) add skeleton on content loading #2254
+- ⚡️(frontend) close websocket connection when user change tab #2264
+
+### Changed
+
+- 🏗️(core) migrate from pip to uv
+
+### Fixed
+
+- 🩺(project) reload app if front and back unsync #2276
+- 🐛(frontend) fix patch and comments #2273
+- 🐛(frontend) interlinking are exported correctly in print mode #2269
+- 💬(frontend) add missing link in onboarding description #2233
+- 🐛(frontend) sanitize pasted and dropped content in document title #2210
+- 🐛(frontend) Emoji menu doesn't display above comment box #2229
+- 🐛(frontend) Block menu doesn't stay open on 1st line #2229
+- 🐛(frontend) The "+" on the first line of a new doc doesn't work #2229
+- 🐛(backend) manage race condition between GET and PATCH content #2271
+- 🐛(backend) replace document creation table locks with retry strategy #2274
+
+### Security
+
+- 🔒️(frontend) sanitize color during collaboration #2270
+
+## [v5.0.0] - 2026-05-05
+
+### Added
+
+- ✨(backend) create a dedicated endpoint to update document content #2171
+- ⚡️(backend) stream s3 file content with a dedicated endpoint #2171
+- ✨(backend) allow to use new ai feature using mistral sdk #2193
+
+### Changed
+
+- ♻️(backend) rename documents content endpoint in `formatted-content` (BC)
 - 🚸(frontend) show Crisp from the help menu #2222
 - ♿️(frontend) structure correctly 5xx error alerts #2128
 - ♿️(frontend) make doc search result labels uniquely identifiable #2212
+- ⬆️(backend) upgrade docspec to v3.0.x and adapt converter API #2220
+- ✨(backend) make forward auth request uri header configurable #2241
+- ♿️(frontend) fix sidebar resize handle for screen readers #2122
 
 ### Fixed
 
@@ -21,6 +228,16 @@ and this project adheres to
 - 🐛(frontend) fix interlinking modal clipping #2213
 - 🛂(frontend) fix cannot manage member on small screen #2226
 - 🐛(backend) load jwks url when OIDC_RS_PRIVATE_KEY_STR is set
+- 🐛(backend) Prevent moving document to its own descendant or self #2208
+- 🐛(backend) return 400 when restoring a non-deleted document #2225
+- 🐛(backend) fix race condition in reconciliation requests CSV import #2153
+- 🐛(backend) create_for_owner: add accesses before saving doc content #2124
+- 🐛(backend) enforce emoji validation for reactions #1965
+
+### Removed
+
+- 🔥(backend) remove deprecated descendants endpoint #2243
+- 🔥(backend) remove content in document responses #2171
 
 ## [v4.8.6] - 2026-04-08
 
@@ -59,7 +276,6 @@ and this project adheres to
 - ⚡️(frontend) add jitter to WS reconnection #2162
 - 🐛(frontend) fix tree pagination #2145
 - 🐛(nginx) add page reconciliation on nginx #2154
-- 🐛(backend) fix race condition in reconciliation requests CSV import #2153
 
 ## [v4.8.4] - 2026-03-25
 
@@ -80,10 +296,6 @@ and this project adheres to
 
 - 🐛(y-provider) destroy Y.Doc instances after each convert request #2129
 - 🐛(backend) remove deleted sub documents in favorite_list endpoint #2083
-
-### Fixed
-
-- 🐛(backend) create_for_owner: add accesses before saving doc content #2124
 
 ## [v4.8.3] - 2026-03-23
 
@@ -1252,7 +1464,15 @@ and this project adheres to
 - ✨(frontend) Coming Soon page (#67)
 - 🚀 Impress, project to manage your documents easily and collaboratively.
 
-[unreleased]: https://github.com/suitenumerique/docs/compare/v4.8.6...main
+[unreleased]: https://github.com/suitenumerique/docs/compare/v5.5.0...main
+[v5.5.0]: https://github.com/suitenumerique/docs/releases/v5.5.0
+[v5.4.1]: https://github.com/suitenumerique/docs/releases/v5.4.1
+[v5.4.0]: https://github.com/suitenumerique/docs/releases/v5.4.0
+[v5.3.0]: https://github.com/suitenumerique/docs/releases/v5.3.0
+[v5.2.1]: https://github.com/suitenumerique/docs/releases/v5.2.1
+[v5.2.0]: https://github.com/suitenumerique/docs/releases/v5.2.0
+[v5.1.0]: https://github.com/suitenumerique/docs/releases/v5.1.0
+[v5.0.0]: https://github.com/suitenumerique/docs/releases/v5.0.0
 [v4.8.6]: https://github.com/suitenumerique/docs/releases/v4.8.6
 [v4.8.5]: https://github.com/suitenumerique/docs/releases/v4.8.5
 [v4.8.4]: https://github.com/suitenumerique/docs/releases/v4.8.4

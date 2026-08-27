@@ -72,10 +72,11 @@ data/static:
 # -- Project
 
 create-env-local-files: ## create env.local files in env.d/development
-create-env-local-files: 
+create-env-local-files:
 	@touch env.d/development/crowdin.local
 	@touch env.d/development/common.local
 	@touch env.d/development/postgresql.local
+	@touch env.d/development/kc_auth.local
 	@touch env.d/development/kc_postgresql.local
 .PHONY: create-env-local-files
 
@@ -85,6 +86,7 @@ generate-secret-keys: ## generate secret keys to be stored in common.local
 .PHONY: generate-secret-keys
 
 pre-bootstrap: \
+	create-docker-network \
 	data/media \
 	data/static \
 	create-env-local-files \
@@ -141,7 +143,7 @@ else
 	@echo "$(RESET)"
 	@echo "$(GREEN)Starting bootstrap process...$(RESET)"
 endif
-	@echo "" 
+	@echo ""
 .PHONY: pre-beautiful-bootstrap
 
 post-beautiful-bootstrap: ## Display a success message after bootstrap
@@ -231,11 +233,12 @@ run-backend: ## Start only the backend application and all needed services
 	@$(COMPOSE) up --force-recreate -d docspec
 	@$(COMPOSE) up --force-recreate -d celery-dev
 	@$(COMPOSE) up --force-recreate -d y-provider-development
+	@$(COMPOSE) up --force-recreate -d y-provider-development-converter
 	@$(COMPOSE) up --force-recreate -d nginx
 .PHONY: run-backend
 
 run: ## start the wsgi (production) and development server
-run: 
+run:
 	@$(MAKE) run-backend
 	@$(COMPOSE) up --force-recreate -d frontend-development
 .PHONY: run
@@ -246,6 +249,7 @@ run-e2e:
 	@$(COMPOSE_E2E) stop y-provider-development
 	@$(COMPOSE_E2E) up --force-recreate -d frontend
 	@$(COMPOSE_E2E) up --force-recreate -d y-provider
+	@$(COMPOSE_E2E) up --force-recreate -d y-provider-converter
 .PHONY: run-e2e
 
 status: ## an alias for "docker compose ps"
@@ -322,7 +326,7 @@ superuser: ## Create an admin superuser with password "admin"
 .PHONY: superuser
 
 back-i18n-compile: ## compile the gettext files
-	@$(MANAGE) compilemessages --ignore="venv/**/*"
+	@$(MANAGE) compilemessages --ignore=".venv/**/*"
 .PHONY: back-i18n-compile
 
 back-i18n-generate: ## create the .pot files used for i18n

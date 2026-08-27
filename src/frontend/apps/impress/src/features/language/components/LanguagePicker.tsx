@@ -1,3 +1,7 @@
+import {
+  LanguagePicker as LanguagePickerUIKit,
+  LanguagesOption,
+} from '@gouvfr-lasuite/ui-kit';
 import { announce } from '@react-aria/live-announcer';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,8 +14,16 @@ import {
   getMatchingLocales,
   useSynchronizedLanguage,
 } from '@/features/language';
+import { useResponsiveStore } from '@/stores/useResponsiveStore';
 
-export const LanguagePicker = () => {
+/**
+ * LanguagePickerLegacy component for selecting language.
+ * We still have some legacy code that uses this component, so we keep it for now.
+ * @deprecated Use LanguagePicker instead.
+ * @returns JSX.Element
+ */
+export const LanguagePickerLegacy = () => {
+  const { isSmallMobile } = useResponsiveStore();
   const { t, i18n } = useTranslation();
   const { data: conf } = useConfig();
   const { data: user } = useAuthQuery();
@@ -77,11 +89,53 @@ export const LanguagePicker = () => {
         $gap="0.5rem"
         $align="center"
       >
-        <Icon iconName="translate" $color="inherit" $size="xl" />
+        {!isSmallMobile && (
+          <Icon iconName="translate" $color="inherit" $size="xl" />
+        )}
         <span lang={toLangTag(currentLanguageCode)}>
           {currentLanguageLabel}
         </span>
       </Box>
     </DropdownMenu>
+  );
+};
+
+export const LanguagePicker = () => {
+  const { t, i18n } = useTranslation();
+  const { data: conf } = useConfig();
+  const { data: user } = useAuthQuery();
+  const { changeLanguageSynchronized } = useSynchronizedLanguage();
+  const language = i18n.language;
+
+  const languages: LanguagesOption[] = useMemo(() => {
+    const backendOptions = conf?.LANGUAGES ?? [[language, language]];
+    return backendOptions.map(([backendLocale, backendLabel]) => ({
+      label: backendLabel,
+      value: backendLocale,
+      isChecked: getMatchingLocales([backendLocale], [language]).length > 0,
+    }));
+  }, [conf?.LANGUAGES, language]);
+
+  const onChange = (value: string) => {
+    const lang = conf?.LANGUAGES?.find(([code]) => code === value);
+    const backendLabel = lang?.[1] ?? value;
+    void changeLanguageSynchronized(value, user).then(() => {
+      announce(
+        t('Language changed to {{language}}', {
+          language: backendLabel,
+          defaultValue: `Language changed to ${backendLabel}`,
+        }),
+        'polite',
+      );
+    });
+  };
+
+  return (
+    <LanguagePickerUIKit
+      languages={languages}
+      size="small"
+      onChange={onChange}
+      compact
+    />
   );
 };

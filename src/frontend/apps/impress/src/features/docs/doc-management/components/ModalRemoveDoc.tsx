@@ -6,7 +6,6 @@ import {
   VariantType,
   useToastProvider,
 } from '@gouvfr-lasuite/cunningham-react';
-import { useRouter } from 'next/router';
 import { useEffect, useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -15,6 +14,7 @@ import { useConfig } from '@/core';
 import { KEY_LIST_DOC_TRASHBIN } from '@/docs/docs-grid';
 import { useKeyboardAction } from '@/hooks';
 
+import { KEY_DOC, KEY_LIST_FAVORITE_DOC } from '../api';
 import { KEY_LIST_DOC } from '../api/useDocs';
 import { useRemoveDoc } from '../api/useRemoveDoc';
 import { useDocUtils } from '../hooks';
@@ -35,7 +35,6 @@ export const ModalRemoveDoc = ({
   const { t } = useTranslation();
   const { data: config } = useConfig();
   const trashBinCutoffDays = config?.TRASHBIN_CUTOFF_DAYS || 30;
-  const { push } = useRouter();
   const { hasChildren } = useDocUtils(doc);
   const cancelButtonRef = useRef<ButtonElement>(null);
 
@@ -44,13 +43,16 @@ export const ModalRemoveDoc = ({
     isError,
     error,
   } = useRemoveDoc({
-    listInvalidQueries: [KEY_LIST_DOC, KEY_LIST_DOC_TRASHBIN],
+    listInvalidQueries: [
+      KEY_LIST_DOC,
+      KEY_LIST_DOC_TRASHBIN,
+      KEY_DOC,
+      KEY_LIST_FAVORITE_DOC,
+    ],
     options: {
       onSuccess: () => {
         if (onSuccess) {
           onSuccess(doc);
-        } else {
-          void push('/');
         }
 
         onClose();

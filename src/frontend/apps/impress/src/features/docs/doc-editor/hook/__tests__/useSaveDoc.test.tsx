@@ -30,7 +30,8 @@ describe('useSaveDoc', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchMock.restore();
+    fetchMock.hardReset();
+    fetchMock.mockGlobal();
 
     (useRouter as Mock).mockReturnValue({
       events: mockRouterEvents,
@@ -43,7 +44,7 @@ describe('useSaveDoc', () => {
 
     const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
 
-    renderHook(() => useSaveDoc(docId, yDoc, true), {
+    renderHook(() => useSaveDoc(docId, yDoc), {
       wrapper: AppWrapper,
     });
 
@@ -65,17 +66,16 @@ describe('useSaveDoc', () => {
   it('should save when there are local changes', async () => {
     vi.useFakeTimers();
     const yDoc = new Y.Doc();
-    const docId = 'test-doc-id';
+    const docId = self.crypto.randomUUID();
 
-    fetchMock.patch('http://test.jest/api/v1.0/documents/test-doc-id/', {
+    fetchMock.patch(`http://test.jest/api/v1.0/documents/${docId}/content/`, {
       body: JSON.stringify({
-        id: 'test-doc-id',
+        id: docId,
         content: 'test-content',
-        title: 'test-title',
       }),
     });
 
-    renderHook(() => useSaveDoc(docId, yDoc, true), {
+    renderHook(() => useSaveDoc(docId, yDoc), {
       wrapper: AppWrapper,
     });
 
@@ -93,8 +93,8 @@ describe('useSaveDoc', () => {
     vi.useRealTimers();
 
     await waitFor(() => {
-      expect(fetchMock.lastCall()?.[0]).toBe(
-        'http://test.jest/api/v1.0/documents/test-doc-id/',
+      expect(fetchMock.callHistory.lastCall()?.url).toBe(
+        `http://test.jest/api/v1.0/documents/${docId}/content/`,
       );
     });
   });
@@ -104,15 +104,17 @@ describe('useSaveDoc', () => {
     const yDoc = new Y.Doc();
     const docId = 'test-doc-id';
 
-    fetchMock.patch('http://test.jest/api/v1.0/documents/test-doc-id/', {
-      body: JSON.stringify({
-        id: 'test-doc-id',
-        content: 'test-content',
-        title: 'test-title',
-      }),
-    });
+    fetchMock.patch(
+      'http://test.jest/api/v1.0/documents/test-doc-id/content/',
+      {
+        body: JSON.stringify({
+          id: 'test-doc-id',
+          content: 'test-content',
+        }),
+      },
+    );
 
-    renderHook(() => useSaveDoc(docId, yDoc, true), {
+    renderHook(() => useSaveDoc(docId, yDoc), {
       wrapper: AppWrapper,
     });
 
@@ -122,7 +124,7 @@ describe('useSaveDoc', () => {
     });
 
     // Since there are no local changes, no API call should be made
-    expect(fetchMock.calls().length).toBe(0);
+    expect(fetchMock.callHistory.calls().length).toBe(0);
 
     vi.useRealTimers();
   });
@@ -132,7 +134,7 @@ describe('useSaveDoc', () => {
     const docId = 'test-doc-id';
     const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
 
-    const { unmount } = renderHook(() => useSaveDoc(docId, yDoc, true), {
+    const { unmount } = renderHook(() => useSaveDoc(docId, yDoc), {
       wrapper: AppWrapper,
     });
 

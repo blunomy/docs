@@ -1,79 +1,118 @@
 import { t } from 'i18next';
-import React from 'react';
 
-import { Text } from '@/components';
+import { Box, Icon, Text } from '@/components';
 import { useConfig } from '@/core';
 import {
   Doc,
+  LinkReach,
   Role,
+  getDocLinkReach,
   useIsCollaborativeEditable,
   useTrans,
 } from '@/docs/doc-management';
 import { useDate } from '@/hooks';
-import { useResponsiveStore } from '@/stores';
+import PublicSVG from '@/icons/public.svg';
+import StarIcon from '@/icons/star-filled.svg';
+import ProtedtedSVG from '@/icons/vpn_lock.svg';
 
 interface DocHeaderInfoProps {
   doc: Doc;
 }
 
 export const DocHeaderInfo = ({ doc }: DocHeaderInfoProps) => {
-  const { isDesktop } = useResponsiveStore();
   const { transRole } = useTrans();
   const { isEditable } = useIsCollaborativeEditable(doc);
   const { relativeDate, calculateDaysLeft } = useDate();
   const { data: config } = useConfig();
 
-  const childrenCount = doc.numchild ?? 0;
-
   const relativeOnly = relativeDate(doc.updated_at);
 
-  let dateToDisplay = t('Last update: {{update}}', {
-    update: relativeOnly,
-  });
+  const trashbinCutoff = config?.TRASHBIN_CUTOFF_DAYS;
 
-  if (config?.TRASHBIN_CUTOFF_DAYS && doc.deleted_at) {
-    const daysLeft = calculateDaysLeft(
-      doc.deleted_at,
-      config.TRASHBIN_CUTOFF_DAYS,
-    );
+  let dateLabel: string;
+  let dateValue: string;
 
-    dateToDisplay = `${t('Days remaining:')} ${daysLeft} ${t('days', { count: daysLeft })}`;
+  if (trashbinCutoff && doc.deleted_at) {
+    const daysLeft = calculateDaysLeft(doc.deleted_at, trashbinCutoff);
+    dateLabel = t('Days remaining:');
+    dateValue = `${daysLeft} ${t('days', { count: daysLeft })}`;
+  } else {
+    dateLabel = t('Last update:');
+    dateValue = relativeOnly;
   }
 
-  const hasChildren = childrenCount > 0;
+  return (
+    <Box as="dl" $direction="row" $align="center" $margin="0" $gap="3xs">
+      {doc.is_favorite && (
+        <>
+          <Text as="dt" className="sr-only">
+            {t('This document is starred')}
+          </Text>
+          <Text
+            as="dd"
+            $variation="tertiary"
+            $size="s"
+            $weight="bold"
+            $theme={isEditable ? 'neutral' : 'warning'}
+            $direction="row"
+            $margin="0"
+          >
+            <Icon
+              $layer="background"
+              $theme="neutral"
+              $variation="primary"
+              $size="sm"
+              icon={<StarIcon aria-hidden="true" width={16} height={16} />}
+            />
+          </Text>
+        </>
+      )}
+      <Text as="dt" className="sr-only">
+        {t('Role')}
+      </Text>
+      <Text
+        as="dd"
+        $variation="tertiary"
+        $size="s"
+        $weight="bold"
+        $theme={isEditable ? 'neutral' : 'warning'}
+        $direction="row"
+        $margin="0"
+      >
+        <VisibilityDoc doc={doc} />
+        {transRole(isEditable ? doc.user_role || doc.link_role : Role.READER)}
+        &nbsp;&nbsp;·&nbsp;
+      </Text>
+      <Text as="dt" $variation="tertiary" $size="s" $margin="0">
+        {dateLabel}
+        &nbsp;
+      </Text>
+      <Text as="dd" $variation="tertiary" $size="s" $margin="0">
+        {dateValue}
+      </Text>
+    </Box>
+  );
+};
 
-  if (isDesktop) {
+const VisibilityDoc = ({ doc }: { doc: Doc }) => {
+  const docIsPublic = getDocLinkReach(doc) === LinkReach.PUBLIC;
+  const docIsAuth = getDocLinkReach(doc) === LinkReach.AUTHENTICATED;
+
+  if (docIsPublic) {
     return (
       <>
-        <Text
-          $variation="tertiary"
-          $size="s"
-          $weight="bold"
-          $theme={isEditable ? 'neutral' : 'warning'}
-        >
-          {transRole(isEditable ? doc.user_role || doc.link_role : Role.READER)}
-          &nbsp;·&nbsp;
-        </Text>
-        <Text $variation="tertiary" $size="s">
-          {dateToDisplay}
-        </Text>
+        <PublicSVG aria-hidden="true" width="16" height="16" />
+        &nbsp;{t('Public')}&nbsp;·&nbsp;
       </>
     );
   }
 
-  return (
-    <>
-      <Text $variation="tertiary" $size="s">
-        {hasChildren ? relativeOnly : dateToDisplay}
-      </Text>
-      {hasChildren && (
-        <Text $variation="tertiary" $size="s">
-          &nbsp;•&nbsp;
-          {t('Contains {{count}} sub-documents', {
-            count: childrenCount,
-          })}
-        </Text>
-      )}
-    </>
-  );
+  if (docIsAuth) {
+    return (
+      <>
+        <ProtedtedSVG aria-hidden="true" width="16" height="16" />
+        &nbsp;{t('Internal')}&nbsp;·&nbsp;
+      </>
+    );
+  }
 };

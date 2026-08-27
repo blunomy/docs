@@ -165,13 +165,15 @@ def test_models_documents_get_abilities_forbidden(
         "collaboration_auth": False,
         "descendants": False,
         "cors_proxy": False,
-        "content": False,
+        "formatted_content": False,
         "destroy": False,
         "duplicate": False,
         "favorite": False,
         "comment": False,
         "invite_owner": False,
-        "mask": False,
+        "content_patch": False,
+        "content_retrieve": False,
+        "leave": False,
         "media_auth": False,
         "media_check": False,
         "move": False,
@@ -191,7 +193,7 @@ def test_models_documents_get_abilities_forbidden(
         "versions_retrieve": False,
         "search": False,
     }
-    nb_queries = 1 if is_authenticated else 0
+    nb_queries = 2 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
         assert document.get_abilities(user) == expected_abilities
     document.soft_delete()
@@ -233,7 +235,7 @@ def test_models_documents_get_abilities_reader(
         "comment": False,
         "descendants": True,
         "cors_proxy": True,
-        "content": True,
+        "formatted_content": True,
         "destroy": False,
         "duplicate": is_authenticated,
         "favorite": is_authenticated,
@@ -244,7 +246,9 @@ def test_models_documents_get_abilities_reader(
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": is_authenticated,
+        "content_patch": False,
+        "content_retrieve": True,
+        "leave": False,
         "media_auth": True,
         "media_check": True,
         "move": False,
@@ -258,7 +262,7 @@ def test_models_documents_get_abilities_reader(
         "versions_retrieve": False,
         "search": True,
     }
-    nb_queries = 1 if is_authenticated else 0
+    nb_queries = 2 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
         assert document.get_abilities(user) == expected_abilities
 
@@ -303,7 +307,7 @@ def test_models_documents_get_abilities_commenter(
         "children_list": True,
         "collaboration_auth": True,
         "comment": True,
-        "content": True,
+        "formatted_content": True,
         "descendants": True,
         "cors_proxy": True,
         "destroy": False,
@@ -316,7 +320,9 @@ def test_models_documents_get_abilities_commenter(
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": is_authenticated,
+        "content_patch": False,
+        "content_retrieve": True,
+        "leave": False,
         "media_auth": True,
         "media_check": True,
         "move": False,
@@ -330,7 +336,7 @@ def test_models_documents_get_abilities_commenter(
         "versions_retrieve": False,
         "search": True,
     }
-    nb_queries = 1 if is_authenticated else 0
+    nb_queries = 2 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
         assert document.get_abilities(user) == expected_abilities
 
@@ -374,7 +380,7 @@ def test_models_documents_get_abilities_editor(
         "comment": True,
         "descendants": True,
         "cors_proxy": True,
-        "content": True,
+        "formatted_content": True,
         "destroy": False,
         "duplicate": is_authenticated,
         "favorite": is_authenticated,
@@ -385,7 +391,9 @@ def test_models_documents_get_abilities_editor(
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": is_authenticated,
+        "content_patch": True,
+        "content_retrieve": True,
+        "leave": False,
         "media_auth": True,
         "media_check": True,
         "move": False,
@@ -399,7 +407,7 @@ def test_models_documents_get_abilities_editor(
         "versions_retrieve": False,
         "search": True,
     }
-    nb_queries = 1 if is_authenticated else 0
+    nb_queries = 2 if is_authenticated else 0
     with django_assert_num_queries(nb_queries):
         assert document.get_abilities(user) == expected_abilities
     document.soft_delete()
@@ -432,7 +440,7 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
         "comment": True,
         "descendants": True,
         "cors_proxy": True,
-        "content": True,
+        "formatted_content": True,
         "destroy": True,
         "duplicate": True,
         "favorite": True,
@@ -443,12 +451,14 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": True,
+        "content_patch": True,
+        "content_retrieve": True,
+        "leave": False,
         "media_auth": True,
         "media_check": True,
         "move": True,
         "partial_update": True,
-        "restore": True,
+        "restore": False,
         "retrieve": True,
         "tree": True,
         "update": True,
@@ -476,7 +486,7 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
         "comment": False,
         "descendants": False,
         "cors_proxy": False,
-        "content": False,
+        "formatted_content": False,
         "destroy": False,
         "duplicate": False,
         "favorite": False,
@@ -487,7 +497,9 @@ def test_models_documents_get_abilities_owner(django_assert_num_queries):
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": False,
+        "content_patch": False,
+        "content_retrieve": True,
+        "leave": False,
         "media_auth": False,
         "media_check": False,
         "move": False,
@@ -524,7 +536,7 @@ def test_models_documents_get_abilities_administrator(django_assert_num_queries)
         "comment": True,
         "descendants": True,
         "cors_proxy": True,
-        "content": True,
+        "formatted_content": True,
         "destroy": False,
         "duplicate": True,
         "favorite": True,
@@ -535,7 +547,9 @@ def test_models_documents_get_abilities_administrator(django_assert_num_queries)
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": True,
+        "content_patch": True,
+        "content_retrieve": True,
+        "leave": False,
         "media_auth": True,
         "media_check": True,
         "move": True,
@@ -582,7 +596,7 @@ def test_models_documents_get_abilities_editor_user(django_assert_num_queries):
         "comment": True,
         "descendants": True,
         "cors_proxy": True,
-        "content": True,
+        "formatted_content": True,
         "destroy": False,
         "duplicate": True,
         "favorite": True,
@@ -593,7 +607,9 @@ def test_models_documents_get_abilities_editor_user(django_assert_num_queries):
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": True,
+        "content_patch": True,
+        "content_retrieve": True,
+        "leave": True,
         "media_auth": True,
         "media_check": True,
         "move": False,
@@ -648,7 +664,7 @@ def test_models_documents_get_abilities_reader_user(
         and document.link_role in ["commenter", "editor"],
         "descendants": True,
         "cors_proxy": True,
-        "content": True,
+        "formatted_content": True,
         "destroy": False,
         "duplicate": True,
         "favorite": True,
@@ -659,7 +675,9 @@ def test_models_documents_get_abilities_reader_user(
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": True,
+        "content_patch": access_from_link,
+        "content_retrieve": True,
+        "leave": True,
         "media_auth": True,
         "media_check": True,
         "move": False,
@@ -713,7 +731,7 @@ def test_models_documents_get_abilities_commenter_user(
         "children_list": True,
         "collaboration_auth": True,
         "comment": True,
-        "content": True,
+        "formatted_content": True,
         "descendants": True,
         "cors_proxy": True,
         "destroy": False,
@@ -726,7 +744,9 @@ def test_models_documents_get_abilities_commenter_user(
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": True,
+        "content_patch": access_from_link,
+        "content_retrieve": True,
+        "leave": True,
         "media_auth": True,
         "media_check": True,
         "move": False,
@@ -778,7 +798,7 @@ def test_models_documents_get_abilities_preset_role(django_assert_num_queries):
         "comment": False,
         "descendants": True,
         "cors_proxy": True,
-        "content": True,
+        "formatted_content": True,
         "destroy": False,
         "duplicate": True,
         "favorite": True,
@@ -789,7 +809,9 @@ def test_models_documents_get_abilities_preset_role(django_assert_num_queries):
             "public": ["reader", "commenter", "editor"],
             "restricted": None,
         },
-        "mask": True,
+        "content_patch": False,
+        "content_retrieve": True,
+        "leave": True,
         "media_auth": True,
         "media_check": True,
         "move": False,
@@ -861,7 +883,7 @@ def test_models_documents_get_abilities_preset_role(django_assert_num_queries):
     ],
 )
 # pylint: disable=too-many-arguments, too-many-positional-arguments
-def test_models_documents_get_abilities_children_destroy(  # noqa: PLR0913
+def test_models_documents_get_abilities_children_destroy(  # noqa: PLR0913, PLR0917
     is_authenticated,
     is_creator,
     role,
@@ -883,6 +905,22 @@ def test_models_documents_get_abilities_children_destroy(  # noqa: PLR0913
 
     abilities = document.get_abilities(user)
     assert abilities["destroy"] is can_destroy
+
+
+@pytest.mark.parametrize("parent_deleted", [False, True])
+def test_models_documents_get_abilities_owner_ancestor_deleted(parent_deleted):
+    """Test restore a child should not be enabled when a parent is deleted."""
+    user = factories.UserFactory()
+    parent = factories.DocumentFactory(users=[(user, "owner")])
+    document = factories.DocumentFactory(parent=parent)
+
+    if parent_deleted:
+        parent.soft_delete()
+        document.refresh_from_db()
+
+    abilities = document.get_abilities(user)
+
+    assert abilities["restore"] is False
 
 
 @override_settings(AI_ALLOW_REACH_FROM="public")

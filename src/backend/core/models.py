@@ -14,12 +14,14 @@ from django.conf import settings
 from django.contrib.auth import models as auth_models
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
 from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import send_mail
-from django.db import connection, models, transaction
+from django.db import models, transaction
+from django.db.models import Count
 from django.db.models.functions import Left, Length
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -39,6 +41,7 @@ from core.choices import (
     RoleChoices,
     get_equivalent_link_definition,
 )
+from core.utils.treebeard import create_tree_node_with_retry
 from core.validators import sub_validator
 
 logger = getLogger(__name__)
@@ -224,6 +227,55 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
             self._duplicate_onboarding_sandbox_document()
             self._convert_valid_invitations()
 
+    def delete(self, using=None, keep_parents=False):
+        """Completely delete a user and its relations."""
+        with transaction.atomic():
+            self._delete_user_shared_documents_accesses()
+            self._delete_documents_single_owner()
+            self._clear_user_created_documents()
+
+            return super().delete(using=using, keep_parents=keep_parents)
+
+    def _delete_user_shared_documents_accesses(self):
+        """
+        accesses to delete where there are more than one owner.
+
+        Create first a subquery to filter all the the accesses having more than one
+        owner. Then use this subquery to filter the accesses belonging to this list of
+        documents and to the user to delete
+        """
+        docs_ids = (
+            DocumentAccess.objects.filter(role=RoleChoices.OWNER)
+            .values("document_id")
+            .annotate(owner_count=Count("id"))
+            .filter(owner_count__gte=2)
+            .values("document_id")
+        )
+        DocumentAccess.objects.filter(user=self, document_id__in=docs_ids).delete()
+
+        logger.info(
+            "user_delete: shared documents accesses for user %s have been deleted",
+            self.id,
+        )
+
+    def _delete_documents_single_owner(self):
+        """Delete the documents where the user is the single owner."""
+        Document.objects.filter(
+            accesses__user=self, accesses__role=RoleChoices.OWNER
+        ).delete()
+        logger.info(
+            "user_delete: documents where the user %s is the sole owner deleted",
+            self.id,
+        )
+
+    def _clear_user_created_documents(self):
+        """Set creator to Null for documents where the user is the creator."""
+        Document.objects.filter(creator=self).update(creator=None)
+        logger.info(
+            "user_delete: documents created by user %s have been cleared",
+            self.id,
+        )
+
     def _handle_onboarding_documents_access(self):
         """
         If the user is new and there are documents configured to be given to new users,
@@ -243,7 +295,7 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
                     )
                     continue
 
-                if document.link_reach == LinkReachChoices.RESTRICTED:
+                if document.computed_link_reach == LinkReachChoices.RESTRICTED:
                     logger.warning(
                         "Onboarding on a restricted document is not allowed. Must be public or "
                         "connected. Restricted document: %s",
@@ -265,8 +317,6 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
         duplicate the sandbox document for the user
         """
         if settings.USER_ONBOARDING_SANDBOX_DOCUMENT:
-            # transaction.atomic is used in a context manager to avoid a transaction if
-            # the settings USER_ONBOARDING_SANDBOX_DOCUMENT is unused
             sandbox_id = settings.USER_ONBOARDING_SANDBOX_DOCUMENT
             try:
                 template_document = Document.objects.get(id=sandbox_id)
@@ -276,20 +326,15 @@ class User(AbstractBaseUser, BaseModel, auth_models.PermissionsMixin):
                     sandbox_id,
                 )
                 return
-
             with transaction.atomic():
-                # locks the table to ensure safe concurrent access
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        f'LOCK TABLE "{Document._meta.db_table}" '  # noqa: SLF001
-                        "IN SHARE ROW EXCLUSIVE MODE;"
+                sandbox_document = create_tree_node_with_retry(
+                    lambda: Document.add_root(
+                        title=template_document.title,
+                        content=template_document.content,
+                        attachments=template_document.attachments,
+                        duplicated_from=template_document,
+                        creator=self,
                     )
-                sandbox_document = Document.add_root(
-                    title=template_document.title,
-                    content=template_document.content,
-                    attachments=template_document.attachments,
-                    duplicated_from=template_document,
-                    creator=self,
                 )
 
                 DocumentAccess.objects.create(
@@ -858,6 +903,22 @@ class DocumentQuerySet(MP_NodeQuerySet):
             user_roles=models.Value([], output_field=output_field),
         )
 
+    def annotate_user_has_link_trace(self, user):
+        """
+        Annotate document queryset with a boolean to know if the current user
+        has a link_trace on the current document.
+        """
+
+        if user.is_authenticated:
+            link_trace_exists_subquery = LinkTrace.objects.filter(
+                document_id=models.OuterRef("pk"), user=user
+            )
+            return self.annotate(
+                user_has_link_trace=models.Exists(link_trace_exists_subquery)
+            )
+
+        return self.annotate(user_has_link_trace=models.Value(False))
+
 
 class DocumentManager(MP_NodeManager.from_queryset(DocumentQuerySet)):
     """
@@ -926,6 +987,11 @@ class Document(MP_Node, BaseModel):
         ordering = ("path",)
         verbose_name = _("Document")
         verbose_name_plural = _("Documents")
+        indexes = [
+            # Used by media-auth to find the document(s) holding an attachment
+            # key without scanning the table (attachments @> [key]).
+            GinIndex(fields=["attachments"], name="document_attachments_gin"),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=(
@@ -1004,7 +1070,7 @@ class Document(MP_Node, BaseModel):
         if self._content is None and self.id:
             try:
                 response = self.get_content_response()
-            except (FileNotFoundError, ClientError):
+            except FileNotFoundError, ClientError:
                 pass
             else:
                 self._content = response["Body"].read().decode("utf-8")
@@ -1156,6 +1222,17 @@ class Document(MP_Node, BaseModel):
 
         return RoleChoices.max(*roles)
 
+    def has_link_trace(self, user):
+        """Return if the user has a link trace on this document."""
+
+        if not user.is_authenticated:
+            return False
+
+        try:
+            return self.user_has_link_trace
+        except AttributeError:
+            return LinkTrace.objects.filter(document=self, user=user).exists()
+
     def compute_ancestors_links_paths_mapping(self):
         """
         Compute the ancestors links for the current document up to the highest readable ancestor.
@@ -1233,7 +1310,7 @@ class Document(MP_Node, BaseModel):
         """Actual link role on the document."""
         return self.computed_link_definition["link_role"]
 
-    def get_abilities(self, user):
+    def get_abilities(self, user):  # pylint: disable=too-many-locals
         """
         Compute and return abilities for a given user on the document.
         """
@@ -1253,6 +1330,18 @@ class Document(MP_Node, BaseModel):
         can_update_from_access = (
             is_owner_or_admin or role == RoleChoices.EDITOR
         ) and not is_deleted
+
+        # compute can_leave
+        # An authenticated user can leave a document if it has a non
+        # privileged role on the document or access to it with a link_trace
+        can_leave = (
+            user.is_authenticated
+            and not is_deleted
+            and (
+                (has_access_role and not is_owner_or_admin)
+                or (not has_access_role and self.has_link_trace(user))
+            )
+        )
 
         link_select_options = LinkReachChoices.get_select_options(
             **self.ancestors_link_definition
@@ -1308,7 +1397,9 @@ class Document(MP_Node, BaseModel):
             "children_create": can_create_children,
             "collaboration_auth": can_get,
             "comment": can_comment,
-            "content": can_get,
+            "formatted_content": can_get,
+            "content_patch": can_update,
+            "content_retrieve": retrieve,
             "cors_proxy": can_get,
             "descendants": can_get,
             "destroy": can_destroy,
@@ -1316,10 +1407,10 @@ class Document(MP_Node, BaseModel):
             "favorite": can_get and user.is_authenticated,
             "link_configuration": is_owner_or_admin,
             "invite_owner": is_owner and not is_deleted,
-            "mask": can_get and user.is_authenticated,
+            "leave": can_leave,
             "move": is_owner_or_admin and not is_deleted,
             "partial_update": can_update,
-            "restore": is_owner,
+            "restore": is_owner and bool(self.deleted_at),
             "retrieve": retrieve,
             "media_auth": can_get,
             "link_select_options": link_select_options,
@@ -1485,7 +1576,6 @@ class LinkTrace(BaseModel):
         related_name="link_traces",
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="link_traces")
-    is_masked = models.BooleanField(default=False)
 
     class Meta:
         db_table = "impress_link_trace"
@@ -1855,6 +1945,7 @@ class Thread(BaseModel):
             "update": write_access,
             "partial_update": write_access,
             "resolve": write_access,
+            "unresolve": write_access,
             "retrieve": read_access,
         }
 
@@ -1899,14 +1990,15 @@ class Comment(BaseModel):
         doc_abilities = self.thread.document.get_abilities(user)
         read_access = doc_abilities.get("comment", False)
         can_react = read_access and user.is_authenticated
-        write_access = self.user == user or role in [
+        is_author = self.user == user
+        can_moderate = is_author or role in [
             RoleChoices.OWNER,
             RoleChoices.ADMIN,
         ]
         return {
-            "destroy": write_access,
-            "update": write_access,
-            "partial_update": write_access,
+            "destroy": can_moderate,
+            "update": is_author,
+            "partial_update": is_author,
             "reactions": can_react,
             "retrieve": read_access,
         }
@@ -2015,7 +2107,7 @@ class Invitation(BaseModel):
                     roles = self.document.accesses.filter(
                         models.Q(user=user) | models.Q(team__in=teams),
                     ).values_list("role", flat=True)
-                except (self._meta.model.DoesNotExist, IndexError):
+                except self._meta.model.DoesNotExist, IndexError:
                     roles = []
 
         is_admin_or_owner = bool(

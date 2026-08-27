@@ -3,15 +3,19 @@ Test AI proxy API endpoint for users in impress's core app.
 """
 
 import random
+from unittest import mock
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
 from django.test import override_settings
 
 import pytest
 from rest_framework.test import APIClient
 
 from core import factories
+from core.services.ai_services.blocknote import configure_pydantic_model_provider
 from core.tests.conftest import TEAM, USER, VIA
+from core.utils.analytics import PosthogEventName
 
 pytestmark = pytest.mark.django_db
 
@@ -20,13 +24,14 @@ pytestmark = pytest.mark.django_db
 def ai_settings(settings):
     """Fixture to set AI settings."""
     settings.AI_MODEL = "llama"
-    settings.AI_BASE_URL = "http://localhost-ai:12345/"
-    settings.AI_API_KEY = "test-key"
+    settings.OPENAI_SDK_BASE_URL = "http://localhost-ai:12345/"
+    settings.OPENAI_SDK_API_KEY = "test-key"
     settings.AI_FEATURE_ENABLED = True
     settings.AI_FEATURE_BLOCKNOTE_ENABLED = True
     settings.AI_FEATURE_LEGACY_ENABLED = True
     settings.LANGFUSE_PUBLIC_KEY = None
     settings.AI_VERCEL_SDK_VERSION = 6
+    configure_pydantic_model_provider.cache_clear()
 
 
 @override_settings(
@@ -65,7 +70,7 @@ def test_api_documents_ai_proxy_anonymous_forbidden(reach, role):
 
 
 @override_settings(AI_ALLOW_REACH_FROM="public")
-@patch("core.services.ai_services.AIService.stream")
+@patch("core.services.ai_services.blocknote.AIService.stream")
 def test_api_documents_ai_proxy_anonymous_success(mock_stream):
     """
     Anonymous users should be able to request AI proxy to a document
@@ -76,11 +81,12 @@ def test_api_documents_ai_proxy_anonymous_success(mock_stream):
     mock_stream.return_value = iter(["data: chunk1\n", "data: chunk2\n"])
 
     url = f"/api/v1.0/documents/{document.id!s}/ai-proxy/"
-    response = APIClient().post(
-        url,
-        b"{}",
-        content_type="application/json",
-    )
+    with mock.patch("core.api.viewsets.posthog_capture") as mock_capture:
+        response = APIClient().post(
+            url,
+            b"{}",
+            content_type="application/json",
+        )
 
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
@@ -91,6 +97,14 @@ def test_api_documents_ai_proxy_anonymous_success(mock_stream):
     assert "chunk1" in content
     assert "chunk2" in content
     mock_stream.assert_called_once()
+
+    # The AI action should be tracked in PostHog
+    mock_capture.assert_called_once_with(
+        PosthogEventName.DOC_AI_ACTION,
+        AnonymousUser(),
+        {"method": "ai_proxy"},
+        document=document,
+    )
 
 
 @override_settings(AI_ALLOW_REACH_FROM=random.choice(["authenticated", "restricted"]))
@@ -149,7 +163,7 @@ def test_api_documents_ai_proxy_authenticated_forbidden(reach, role):
         ("public", "editor"),
     ],
 )
-@patch("core.services.ai_services.AIService.stream")
+@patch("core.services.ai_services.blocknote.AIService.stream")
 def test_api_documents_ai_proxy_authenticated_success(mock_stream, reach, role):
     """
     Authenticated users should be able to request AI proxy to a document
@@ -165,15 +179,24 @@ def test_api_documents_ai_proxy_authenticated_success(mock_stream, reach, role):
     mock_stream.return_value = iter(["data: response\n"])
 
     url = f"/api/v1.0/documents/{document.id!s}/ai-proxy/"
-    response = client.post(
-        url,
-        b"{}",
-        content_type="application/json",
-    )
+    with mock.patch("core.api.viewsets.posthog_capture") as mock_capture:
+        response = client.post(
+            url,
+            b"{}",
+            content_type="application/json",
+        )
 
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
     mock_stream.assert_called_once()
+
+    # The AI action should be tracked in PostHog
+    mock_capture.assert_called_once_with(
+        PosthogEventName.DOC_AI_ACTION,
+        user,
+        {"method": "ai_proxy"},
+        document=document,
+    )
 
 
 @pytest.mark.parametrize("via", VIA)
@@ -205,7 +228,7 @@ def test_api_documents_ai_proxy_reader(via, mock_user_teams):
 
 @pytest.mark.parametrize("role", ["editor", "administrator", "owner"])
 @pytest.mark.parametrize("via", VIA)
-@patch("core.services.ai_services.AIService.stream")
+@patch("core.services.ai_services.blocknote.AIService.stream")
 def test_api_documents_ai_proxy_success(mock_stream, via, role, mock_user_teams):
     """Users with sufficient permissions should be able to request AI proxy."""
     user = factories.UserFactory()
@@ -225,11 +248,12 @@ def test_api_documents_ai_proxy_success(mock_stream, via, role, mock_user_teams)
     mock_stream.return_value = iter(["data: success\n"])
 
     url = f"/api/v1.0/documents/{document.id!s}/ai-proxy/"
-    response = client.post(
-        url,
-        b"{}",
-        content_type="application/json",
-    )
+    with mock.patch("core.api.viewsets.posthog_capture") as mock_capture:
+        response = client.post(
+            url,
+            b"{}",
+            content_type="application/json",
+        )
 
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
@@ -239,6 +263,14 @@ def test_api_documents_ai_proxy_success(mock_stream, via, role, mock_user_teams)
     content = b"".join(response.streaming_content).decode()
     assert "success" in content
     mock_stream.assert_called_once()
+
+    # The AI action should be tracked in PostHog
+    mock_capture.assert_called_once_with(
+        PosthogEventName.DOC_AI_ACTION,
+        user,
+        {"method": "ai_proxy"},
+        document=document,
+    )
 
 
 @pytest.mark.parametrize(
@@ -266,7 +298,7 @@ def test_api_documents_ai_proxy_ai_feature_disabled(settings, setting_to_disable
 
 
 @override_settings(AI_DOCUMENT_RATE_THROTTLE_RATES={"minute": 3, "hour": 6, "day": 10})
-@patch("core.services.ai_services.AIService.stream")
+@patch("core.services.ai_services.blocknote.AIService.stream")
 def test_api_documents_ai_proxy_throttling_document(mock_stream):
     """
     Throttling per document should be triggered on the AI proxy endpoint.
@@ -304,7 +336,7 @@ def test_api_documents_ai_proxy_throttling_document(mock_stream):
 
 
 @override_settings(AI_USER_RATE_THROTTLE_RATES={"minute": 3, "hour": 6, "day": 10})
-@patch("core.services.ai_services.AIService.stream")
+@patch("core.services.ai_services.blocknote.AIService.stream")
 def test_api_documents_ai_proxy_throttling_user(mock_stream):
     """
     Throttling per user should be triggered on the AI proxy endpoint.
@@ -339,7 +371,7 @@ def test_api_documents_ai_proxy_throttling_user(mock_stream):
     }
 
 
-@patch("core.services.ai_services.AIService.stream")
+@patch("core.services.ai_services.blocknote.AIService.stream")
 def test_api_documents_ai_proxy_returns_streaming_response(mock_stream):
     """AI proxy should return a StreamingHttpResponse with correct headers."""
     user = factories.UserFactory()

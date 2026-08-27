@@ -1,5 +1,4 @@
-import { Tooltip } from '@gouvfr-lasuite/cunningham-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
@@ -42,11 +41,7 @@ export const DocTitleText = () => {
 
   return (
     <Box className={CLASS_DOC_TITLE} $direction="row" $align="center">
-      <Text
-        as="h2"
-        $margin={{ all: 'none', left: 'none' }}
-        $size={isMobile ? 'h4' : 'h2'}
-      >
+      <Text as="h2" $margin="none" $size={isMobile ? 'h4' : 'h2'}>
         {currentDoc?.title || untitledDocument}
       </Text>
     </Box>
@@ -63,58 +58,53 @@ const DocTitleEmojiPicker = ({ doc }: DocTitleProps) => {
   }
 
   return (
-    <Tooltip
-      content={t('Edit document emoji')}
-      aria-hidden={true}
-      placement="top"
+    <Box
+      className={CLASS_DOC_TITLE}
+      $css={css`
+        padding: 4px;
+        padding-top: 3px;
+        cursor: pointer;
+        &:hover {
+          background-color: ${colorsTokens['gray-100']};
+          border-radius: var(--c--globals--spacings--st);
+        }
+        transition: background-color var(--c--globals--transitions--duration)
+          var(--c--globals--transitions--ease-out);
+      `}
     >
-      <Box
-        className={CLASS_DOC_TITLE}
-        $css={css`
-          padding: 4px;
-          padding-top: 3px;
-          cursor: pointer;
-          &:hover {
-            background-color: ${colorsTokens['gray-100']};
-            border-radius: var(--c--globals--spacings--st);
-          }
-          transition: background-color var(--c--globals--transitions--duration)
-            var(--c--globals--transitions--ease-out);
-        `}
-      >
-        <DocIcon
-          buttonProps={{
-            $width: '32px',
-            $height: '32px',
-            $justify: 'space-between',
-            $align: 'center',
-          }}
-          withEmojiPicker={doc.abilities.partial_update}
-          docId={doc.id}
-          title={doc.title}
-          emoji={emoji}
-          $size="23px"
-          defaultIcon={
-            <SimpleFileIcon
-              width="25px"
-              height="25px"
-              aria-hidden="true"
-              aria-label={t('Simple document icon')}
-              color={colorsTokens['brand-500']}
-            />
-          }
-        />
-      </Box>
-    </Tooltip>
+      <DocIcon
+        buttonProps={{
+          $width: '32px',
+          $height: '32px',
+          $justify: 'space-between',
+          $align: 'center',
+        }}
+        withEmojiPicker={doc.abilities.partial_update}
+        docId={doc.id}
+        title={doc.title}
+        emoji={emoji}
+        $size="23px"
+        defaultIcon={
+          <SimpleFileIcon
+            width="25px"
+            height="25px"
+            aria-hidden="true"
+            aria-label={t('Simple document icon')}
+            color={colorsTokens['brand-500']}
+          />
+        }
+      />
+    </Box>
   );
 };
 
 const DocTitleInput = ({ doc }: DocTitleProps) => {
-  const { isDesktop } = useResponsiveStore();
+  const { isSmallMobile } = useResponsiveStore();
   const { t } = useTranslation();
   const { isTopRoot } = useDocUtils(doc);
   const { untitledDocument } = useTrans();
   const { emoji, titleWithoutEmoji } = getEmojiAndTitle(doc.title ?? '');
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [titleDisplay, setTitleDisplay] = useState(
     isTopRoot ? doc.title : titleWithoutEmoji,
   );
@@ -153,6 +143,40 @@ const DocTitleInput = ({ doc }: DocTitleProps) => {
     }
   };
 
+  const insertPlainText = (plainText: string, target: HTMLElement) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!target.contains(range.commonAncestorContainer)) {
+      target.focus();
+      range.selectNodeContents(target);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    range.deleteContents();
+    range.insertNode(document.createTextNode(plainText));
+  };
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    insertPlainText(
+      event.clipboardData.getData('text/plain'),
+      event.currentTarget,
+    );
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    insertPlainText(
+      event.dataTransfer.getData('text/plain'),
+      event.currentTarget,
+    );
+  };
+
   useEffect(() => {
     setTitleDisplay(isTopRoot ? doc.title : titleWithoutEmoji);
   }, [doc.title, isTopRoot, titleWithoutEmoji]);
@@ -166,8 +190,35 @@ const DocTitleInput = ({ doc }: DocTitleProps) => {
       $minHeight="40px"
     >
       {!isTopRoot && <DocTitleEmojiPicker doc={doc} />}
-
-      <Tooltip content={t('Rename')} aria-hidden={true} placement="top">
+      {/**
+       * This wrapper div is necessary to handle focus.
+       * Benefit:
+       * - The tooltip will show exactly in the middle of the title input text
+       * - When the user is click on the right side of the doc title, the title get the focus
+       *   and the cursor, which is the expected behavior when editing a title.
+       */}
+      <Box
+        ref={wrapperRef}
+        $flex="1"
+        $css={css`
+          cursor: text;
+        `}
+        onClick={() => {
+          const el = wrapperRef.current?.querySelector<HTMLElement>(
+            '.--docs--doc-title-input[contenteditable="true"]',
+          );
+          if (el && document.activeElement !== el) {
+            el.focus();
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(el);
+            range.collapse(false);
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          }
+        }}
+        $width="100%"
+      >
         <Box
           as="span"
           role="textbox"
@@ -181,7 +232,8 @@ const DocTitleInput = ({ doc }: DocTitleProps) => {
           onBlurCapture={(event) =>
             handleTitleSubmit(event.target.textContent || '')
           }
-          $padding={{ right: 'big' }}
+          onPasteCapture={handlePaste}
+          onDropCapture={handleDrop}
           $css={css`
             &[contenteditable='true']:empty:not(:focus):before {
               content: '${untitledDocument}';
@@ -191,16 +243,19 @@ const DocTitleInput = ({ doc }: DocTitleProps) => {
               pointer-events: none;
               font-style: italic;
             }
-            font-size: ${isDesktop
-              ? css`var(--c--globals--font--sizes--h2)`
-              : css`var(--c--globals--font--sizes--sm)`};
+            font-size: ${
+              isSmallMobile
+                ? 'var(--c--globals--font--sizes--h4)'
+                : 'var(--c--globals--font--sizes--h2)'
+            };
             font-weight: 700;
             outline: none;
           `}
+          $width="fit-content"
         >
           {titleDisplay}
         </Box>
-      </Tooltip>
+      </Box>
     </Box>
   );
 };

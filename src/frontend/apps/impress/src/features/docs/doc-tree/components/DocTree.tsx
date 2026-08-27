@@ -1,13 +1,22 @@
 import { ButtonElement } from '@gouvfr-lasuite/cunningham-react';
 import {
   OpenMap,
+  TreeDataItem,
   TreeView,
   TreeViewMoveResult,
   useResponsive,
   useTreeContext,
 } from '@gouvfr-lasuite/ui-kit';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import { NodeApi } from 'react-arborist';
 import { useTranslation } from 'react-i18next';
 import { css } from 'styled-components';
 
@@ -19,7 +28,9 @@ import {
   useMoveDoc,
   useTrans,
 } from '@/docs/doc-management';
+import { useLeftPanelStore } from '@/features/left-panel/stores/useLeftPanelStore';
 import { TreeSkeleton } from '@/features/skeletons/components/TreeSkeleton';
+import { useResponsiveStore } from '@/stores/useResponsiveStore';
 
 import { CLASS_DOC_TITLE } from '../../doc-header';
 import { KEY_DOC_TREE, useDocTree } from '../api/useDocTree';
@@ -34,7 +45,8 @@ type DocTreeProps = {
 
 export const DocTree = ({ currentDoc }: DocTreeProps) => {
   const { spacingsTokens } = useCunninghamTheme();
-  const { isDesktop } = useResponsive();
+  const { isMobile } = useResponsiveStore();
+  const { closePanel } = useLeftPanelStore();
   const { untitledDocument } = useTrans();
   const [treeRoot, setTreeRoot] = useState<HTMLElement | null>(null);
   const treeContext = useTreeContext<Doc | null>();
@@ -53,8 +65,6 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
     undefined,
   );
 
-  const { mutate: moveDoc } = useMoveDoc();
-
   const { data: tree, isFetching } = useDocTree(
     { docId: currentDoc.id },
     {
@@ -62,15 +72,6 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
       queryKey: [KEY_DOC_TREE, { id: currentDoc.id }],
     },
   );
-
-  const handleMove = (result: TreeViewMoveResult) => {
-    moveDoc({
-      sourceDocumentId: result.sourceId,
-      targetDocumentId: result.targetModeId,
-      position: result.mode,
-    });
-    treeContext?.treeData.handleMove(result);
-  };
 
   /**
    * This function resets the tree states.
@@ -89,7 +90,7 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
   const navigateToRoot = useCallback(() => {
     const id = treeContext?.root?.id;
     if (id) {
-      router.push(`/docs/${id}`);
+      void router.push(`/docs/${id}`);
     }
   }, [router, treeContext?.root?.id]);
 
@@ -152,41 +153,6 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
         rootItemRef.current?.focus();
       });
     }
-  }, []);
-
-  const handleRowKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Tab' && e.shiftKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      rootItemRef.current?.focus();
-      return;
-    }
-
-    if (e.key !== 'Enter') {
-      return;
-    }
-
-    const target = e.target as HTMLElement | null;
-    if (
-      !target ||
-      !(
-        target.classList.contains('c__tree-view--row') ||
-        target.classList.contains('c__tree-view--node')
-      )
-    ) {
-      return;
-    }
-
-    const treeItem = e.currentTarget.querySelector('[role="treeitem"]');
-    if (treeItem?.getAttribute('aria-selected') === 'true') {
-      e.preventDefault();
-      document.querySelector<HTMLElement>(`.${CLASS_DOC_TITLE}`)?.focus();
-      return;
-    }
-
-    e.currentTarget
-      .querySelector<HTMLDivElement>('.c__tree-view--node')
-      ?.click();
   }, []);
 
   /**
@@ -258,6 +224,52 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
     }
   }, [currentDoc, treeContext]);
 
+  /**
+   * react-arborist's scrollTo calls react-window's scrollToItem, which mutates
+   * the internal scrollOffset state. When navigating to a deep item in a large
+   * tree, this causes all items above the target to be removed from the DOM
+   * (virtualized away), making the tree appear empty above the selected node.
+   * We no-op it to prevent that — the panel's own overflow-y handles scrolling.
+   */
+  const treeApiRef = treeContext?.treeApiRef;
+  useLayoutEffect(() => {
+    if (!treeRoot || !treeApiRef?.current) {
+      return;
+    }
+    const api = treeApiRef.current as unknown as Record<string, unknown>;
+    const origScrollTo = api['scrollTo'];
+    if (typeof origScrollTo !== 'function') {
+      return;
+    }
+    api['scrollTo'] = () => {};
+    return () => {
+      api['scrollTo'] = origScrollTo;
+    };
+  }, [treeRoot, treeApiRef]);
+
+  /**
+   * On initial tree load, scroll the panel to show the current document.
+   * This fires once when initialOpenState is first set (tree data just loaded).
+   * It does not re-fire on user navigation — clicked items are already in view.
+   */
+  useEffect(() => {
+    if (!treeRoot || !initialOpenState) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      treeRoot
+        .querySelector<HTMLElement>(
+          `[data-testid="doc-sub-page-item-${currentDoc.id}"]`,
+        )
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [treeRoot, initialOpenState, currentDoc.id]);
+
   if (!treeContext || !treeContext.root) {
     return <TreeSkeleton />;
   }
@@ -271,12 +283,22 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
       aria-label={t('Document tree')}
       aria-describedby="doc-tree-keyboard-instructions"
       $css={css`
+        /**
+        * TODO: When this pull request is merged (https://github.com/suitenumerique/ui-kit/pull/215), we 
+        * should remove the pointer-events manipulation.
+        * See: https://github.com/suitenumerique/docs/commit/d41e44dcd5a4111463b1bddfdab640faacbf1795
+        */
         /* Remove outline from TreeViewItem wrapper elements */
         .c__tree-view--row {
           outline: none !important;
+          pointer-events: initial;
           &:focus-visible {
             outline: none !important;
           }
+        }
+
+        .c__tree-view--node {
+          pointer-events: inherit;
         }
 
         .c__tree-view--container {
@@ -315,9 +337,11 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
             border-radius: var(--c--globals--spacings--st);
             width: 100%;
             min-width: 200px;
-            background-color: ${rootIsSelected || rootActionsOpen
-              ? 'var(--c--contextuals--background--semantic--contextual--primary)'
-              : 'transparent'};
+            background-color: ${
+              rootIsSelected || rootActionsOpen
+                ? 'var(--c--contextuals--background--semantic--contextual--primary)'
+                : 'transparent'
+            };
 
             &:hover {
               background-color: var(
@@ -364,13 +388,13 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
               treeContext.treeData.setSelectedNode(
                 treeContext.root ?? undefined,
               );
-              router.push(`/docs/${treeContext?.root?.id}`);
+              void router.push(`/docs/${treeContext?.root?.id}`);
             }}
             aria-label={`${t('Open root document')}: ${treeContext.root?.title || untitledDocument}`}
             tabIndex={-1} // avoid double tabstop
           >
             <Box $direction="row" $align="center" $width="100%">
-              <SimpleDocItem doc={treeContext.root} showAccesses={true} />
+              <SimpleDocItem doc={treeContext.root} showDate={true} />
               <DocTreeItemActions
                 doc={treeContext.root}
                 onCreateSuccess={(createdDoc) => {
@@ -381,6 +405,10 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
                     parentId: treeContext.root?.id ?? undefined,
                   };
                   treeContext?.treeData.addChild(null, newDoc);
+
+                  if (isMobile) {
+                    closePanel();
+                  }
                 }}
                 isOpen={rootActionsOpen}
                 isRoot={true}
@@ -396,37 +424,128 @@ export const DocTree = ({ currentDoc }: DocTreeProps) => {
       {initialOpenState &&
         treeContext.treeData.nodes.length > 0 &&
         treeRoot && (
-          <Overlayer isOverlay={currentDoc.deleted_at != null} inert>
-            <TreeView
-              dndRootElement={treeRoot}
-              initialOpenState={initialOpenState}
-              afterMove={handleMove}
-              selectedNodeId={
-                treeContext.treeData.selectedNode?.id ??
-                treeContext.initialTargetId ??
-                undefined
-              }
-              canDrop={({ parentNode }) => {
-                const parentValue = parentNode?.data.value;
-                if (!parentValue || !isDocNode(parentValue)) {
-                  return currentDoc.abilities.move && isDesktop;
-                }
-                return parentValue.abilities.move && isDesktop;
-              }}
-              canDrag={(node) => {
-                if (!isDocNode(node.value)) {
-                  return false;
-                }
-                return node.value.abilities.move && isDesktop;
-              }}
-              rootNodeId={treeContext.root.id}
-              renderNode={DocSubPageItem}
-              rowProps={{
-                onKeyDown: handleRowKeyDown,
-              }}
-            />
-          </Overlayer>
+          <DocTreeView
+            doc={currentDoc}
+            treeRoot={treeRoot}
+            initialOpenState={initialOpenState}
+            rootNodeId={treeContext.root.id}
+            rootItem={rootItemRef.current}
+          />
         )}
     </Box>
   );
 };
+
+interface DocTreeViewProps {
+  doc: Doc;
+  treeRoot: HTMLElement;
+  initialOpenState: OpenMap;
+  rootNodeId: string;
+  rootItem: HTMLDivElement | null;
+}
+
+const DocTreeView = memo(function DocTreeView({
+  doc,
+  treeRoot,
+  initialOpenState,
+  rootNodeId,
+  rootItem,
+}: DocTreeViewProps) {
+  const { isDesktop } = useResponsive();
+  const treeContext = useTreeContext<Doc | null>();
+  const { mutate: moveDoc } = useMoveDoc();
+  const { query } = useRouter();
+
+  const handleMove = useCallback(
+    (result: TreeViewMoveResult) => {
+      moveDoc({
+        sourceDocumentId: result.sourceId,
+        targetDocumentId: result.targetModeId,
+        position: result.mode,
+      });
+      treeContext?.treeData.handleMove(result);
+    },
+    [moveDoc, treeContext],
+  );
+
+  const canDrop = useCallback(
+    ({ parentNode }: { parentNode: NodeApi<TreeDataItem<Doc>> | null }) => {
+      const parentValue = parentNode?.data.value;
+      if (!parentValue || !isDocNode(parentValue)) {
+        return doc.abilities.move && isDesktop;
+      }
+      return parentValue.abilities.move && isDesktop;
+    },
+    [doc.abilities.move, isDesktop],
+  );
+
+  const canDrag = useCallback(
+    (node: TreeDataItem<Doc>) => {
+      if (!isDocNode(node.value)) {
+        return false;
+      }
+      return node.value.abilities.move && isDesktop;
+    },
+    [isDesktop],
+  );
+
+  const handleRowKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Tab' && e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        rootItem?.focus();
+        return;
+      }
+
+      if (e.key !== 'Enter') {
+        return;
+      }
+
+      const target = e.target as HTMLElement | null;
+      if (
+        !target ||
+        !(
+          target.classList.contains('c__tree-view--row') ||
+          target.classList.contains('c__tree-view--node')
+        )
+      ) {
+        return;
+      }
+
+      const treeItem = e.currentTarget.querySelector('[role="treeitem"]');
+      if (treeItem?.getAttribute('aria-selected') === 'true') {
+        e.preventDefault();
+        document.querySelector<HTMLElement>(`.${CLASS_DOC_TITLE}`)?.focus();
+        return;
+      }
+
+      e.currentTarget
+        .querySelector<HTMLDivElement>('.c__tree-view--node')
+        ?.click();
+    },
+    [rootItem],
+  );
+
+  return (
+    <Overlayer isOverlay={doc.deleted_at != null} inert>
+      <TreeView
+        dndRootElement={treeRoot}
+        initialOpenState={initialOpenState}
+        afterMove={handleMove}
+        selectedNodeId={
+          (query.id as string | undefined) ??
+          treeContext?.initialTargetId ??
+          undefined
+        }
+        canDrop={canDrop}
+        canDrag={canDrag}
+        rootNodeId={rootNodeId}
+        renderNode={DocSubPageItem}
+        rowProps={{
+          onKeyDown: handleRowKeyDown,
+        }}
+      />
+    </Overlayer>
+  );
+});

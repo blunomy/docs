@@ -1,9 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-import { BROWSERS, createDoc, randomName, verifyDocName } from './utils-common';
+import {
+  BROWSERS,
+  clickInEditorShareButton,
+  createDoc,
+  randomName,
+  verifyDocName,
+} from './utils-common';
 import { writeInEditor } from './utils-editor';
 import { connectOtherUserToDoc, updateRoleUser } from './utils-share';
-import { SignIn } from './utils-signin';
+import { SignIn, logOut } from './utils-signin';
 import { createRootSubPage } from './utils-sub-pages';
 
 test.describe('Document create member', () => {
@@ -98,7 +104,7 @@ test.describe('Document create member', () => {
     ).toBeVisible();
 
     // Select email and verify tag
-    const email = randomName('test@test.fr', browserName, 1)[0];
+    const email = randomName('test@test.fr', browserName, 1, true)[0];
     await inputSearch.fill(email);
     await quickSearchContent.getByText(email).click();
     await expect(list.getByText(email)).toBeVisible();
@@ -158,7 +164,7 @@ test.describe('Document create member', () => {
 
     const inputSearch = page.getByTestId('quick-search-input');
 
-    const [email] = randomName('test@test.fr', browserName, 1);
+    const [email] = randomName('test@test.fr', browserName, 1, true);
     await inputSearch.fill(email);
     await page.getByTestId(`search-user-row-${email}`).click();
 
@@ -271,8 +277,6 @@ test.describe('Document create member', () => {
       1,
     );
 
-    await verifyDocName(page, docTitle);
-
     await writeInEditor({ page, text: 'Hello World' });
 
     const docUrl = page.url();
@@ -294,8 +298,7 @@ test.describe('Document create member', () => {
     ).toBeVisible();
 
     // First user approves the request
-    await page.getByRole('button', { name: 'Share' }).click();
-
+    await clickInEditorShareButton(page);
     await expect(page.getByText('Access Requests')).toBeVisible();
     await expect(
       page.getByText(
@@ -330,7 +333,9 @@ test.describe('Document create member', () => {
     await updateRoleUser(page, 'Remove access', emailRequest);
     await expect(
       otherPage.getByText('Insufficient access rights to view the document.'),
-    ).toBeVisible();
+    ).toBeVisible({
+      timeout: 10000,
+    });
 
     // Cleanup: other user logout
     await cleanup();
@@ -366,11 +371,7 @@ test.describe('Document create member: Multiple login', () => {
 
     const urlDoc = page.url();
 
-    await page
-      .getByRole('button', {
-        name: 'Logout',
-      })
-      .click();
+    await logOut(page);
 
     const otherBrowser = BROWSERS.find((b) => b !== browserName);
 

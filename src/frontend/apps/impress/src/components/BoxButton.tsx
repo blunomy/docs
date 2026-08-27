@@ -1,12 +1,13 @@
-import { Ref, forwardRef } from 'react';
+import { ComponentPropsWithRef, Ref, forwardRef } from 'react';
 import { css } from 'styled-components';
 
-import { Box, BoxType } from './Box';
+import { Box, BoxProps } from './Box';
 
-export type BoxButtonType = Omit<BoxType, 'ref'> & {
-  disabled?: boolean;
-  ref?: Ref<HTMLButtonElement>;
-};
+export type BoxButtonType = BoxProps &
+  Omit<ComponentPropsWithRef<'button'>, keyof BoxProps | 'ref'> & {
+    disabled?: boolean;
+    ref?: Ref<HTMLButtonElement>;
+  };
 
 /**
  * Styleless button that extends the Box component.
@@ -42,8 +43,10 @@ const BoxButton = forwardRef<HTMLButtonElement, BoxButtonType>(
           border: none;
           outline: none;
           font-family: inherit;
-          color: ${disabled &&
-          `var(--c--contextuals--content--semantic--disabled--primary)`};
+          color: ${
+            disabled &&
+            `var(--c--contextuals--content--semantic--disabled--primary)`
+          };
           &:focus-visible {
             transition: none;
             outline: 2px solid
@@ -59,7 +62,7 @@ const BoxButton = forwardRef<HTMLButtonElement, BoxButtonType>(
           if (disabled) {
             return;
           }
-          props.onClick?.(event as unknown as React.MouseEvent<HTMLDivElement>);
+          props.onClick?.(event);
         }}
       />
     );

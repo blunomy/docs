@@ -70,6 +70,7 @@
 
 .c__modal__title {
   padding: 0;
+  display: block;
 }
 
 .c__modal__footer {
@@ -92,7 +93,8 @@
  * Tooltip
 */
 .c__tooltip {
-  padding: var(--c--globals--font--sizes--sm) var(--c--globals--spacings--xxs);
+  padding: var(--c--globals--spacings--t) var(--c--globals--spacings--xxs);
+  text-align: center;
 }
 
 .c__tooltip .react-aria-OverlayArrow svg {

@@ -2,16 +2,18 @@ import {
   Button,
   Modal,
   ModalSize,
+  VariantType,
   useModal,
+  useToastProvider,
 } from '@gouvfr-lasuite/cunningham-react';
 import { TreeViewMoveModeEnum } from '@gouvfr-lasuite/ui-kit';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { createGlobalStyle, css } from 'styled-components';
 import { useDebouncedCallback } from 'use-debounce';
 
-import { Box, ButtonCloseModal, HorizontalSeparator, Text } from '@/components';
+import { Box, ButtonCloseModal, Text } from '@/components';
 import { QuickSearch } from '@/components/quick-search';
 import { Doc, useMoveDoc, useTrans } from '@/docs/doc-management';
 import { DocSearchContent } from '@/docs/doc-search';
@@ -37,7 +39,15 @@ const ModalConfirmationMoveDoc = dynamic(
 
 export const DocMoveModalStyle = createGlobalStyle`
   .c__modal--full .c__modal__scroller {
-    height: 100vh;
+    height: 100dvh;
+  }
+
+  .c__modal--full .c__modal__content {
+    flex-grow: 0;
+  }
+
+  .c__modal--full .c__modal__footer {
+    flex-shrink: 0;
   }
 
   .c__modal__scroller:has(.quick-search-container){
@@ -48,16 +58,17 @@ export const DocMoveModalStyle = createGlobalStyle`
       overflow-y: auto;
     }
 
-    div.c__modal__title {
-      padding: 0;
-      margin-bottom: 0;
+    &:has(.quick-search-container) > div.c__modal__title {
+      padding-top: var(--c--globals--spacings--sm);
+      padding-bottom: var(--c--globals--spacings--xs);
+      padding-inline: var(--c--globals--spacings--base);
     }
     .c__modal__footer {
       margin-top: 0rem;
       border-top: 1px solid var(--c--contextuals--border--surface--primary);
     }
-    .quick-search-input{
-      padding-inline: var(--c--globals--spacings--md);
+    .quick-search-input {
+      padding: var(--c--globals--spacings--xxs) var(--c--globals--spacings--base);
     }
     .quick-search-container [cmdk-item] {
       border-radius: 4px;
@@ -83,21 +94,21 @@ export const DocMoveModal = ({
   const [loading, setLoading] = useState(false);
   const [docSelected, setDocSelected] = useState<Doc>();
   const { untitledDocument } = useTrans();
-  const docTitle = doc.title || untitledDocument;
   const docTargetTitle = docSelected?.title || untitledDocument;
   const modalConfirmation = useModal();
   const modalRequest = useModal();
-  const { mutate: moveDoc } = useMoveDoc(true);
+  const { mutateAsync: moveDoc } = useMoveDoc();
   const [search, setSearch] = useState('');
   const { isDesktop, isTablet, isMobile } = useResponsiveStore();
   const isModal = (isDesktop || isTablet) && !isMobile;
   const handleInputSearch = useDebouncedCallback(setSearch, 700);
+  const { toast } = useToastProvider();
 
   const handleSelect = (docSelected: Doc) => {
     setDocSelected(docSelected);
   };
 
-  const handleMoveDoc = () => {
+  const handleMoveDoc = async () => {
     modalConfirmation.onClose();
     if (!docSelected?.id) {
       return;
@@ -107,7 +118,19 @@ export const DocMoveModal = ({
       sourceDocumentId: doc.id,
       targetDocumentId: docSelected.id,
       position: TreeViewMoveModeEnum.FIRST_CHILD,
-    });
+    })
+      .then(() => {
+        toast(
+          t(`The document has been moved successfully.`),
+          VariantType.SUCCESS,
+        );
+      })
+      .catch(() => {
+        toast(
+          t(`An error occurred while moving the document.`),
+          VariantType.ERROR,
+        );
+      });
   };
 
   return (
@@ -141,7 +164,7 @@ export const DocMoveModal = ({
                   return;
                 }
 
-                handleMoveDoc();
+                void handleMoveDoc();
               }}
               disabled={!docSelected}
             >
@@ -158,41 +181,17 @@ export const DocMoveModal = ({
           </Box>
         }
         title={
-          <Box>
+          <>
+            <Text as="h2" $margin="0" $size="s" $align="flex-start">
+              {t('Choose a new parent doc')}
+            </Text>
             <Box $position="absolute" $css="top: 4px; right: 4px;">
               <ButtonCloseModal
                 aria-label={t('Close the move modal')}
-                onClick={() => onClose()}
+                onClick={onClose}
               />
             </Box>
-            <Text
-              as="h2"
-              $margin="0"
-              $size="h6"
-              $align="flex-start"
-              $padding={{ horizontal: 'md', top: 'md' }}
-            >
-              {t('Move')}
-            </Text>
-            <Box $margin={{ top: 'sm' }} $padding={{ horizontal: 'md' }}>
-              <Text
-                $size="sm"
-                $variation="secondary"
-                $display="inline"
-                $weight="normal"
-                $textAlign="left"
-              >
-                <Trans
-                  i18nKey="Choose the new location for <strong>{{title}}</strong>."
-                  values={{
-                    title: docTitle,
-                  }}
-                  components={{ strong: <strong /> }}
-                />
-              </Text>
-            </Box>
-            <HorizontalSeparator />
-          </Box>
+          </>
         }
       >
         <Box
@@ -210,13 +209,15 @@ export const DocMoveModal = ({
           }}
         >
           <QuickSearch
-            placeholder={t('Search for a doc')}
+            label={t('Search for a doc...')}
+            placeholder={t('Search for a doc...')}
             loading={loading}
             onFilter={handleInputSearch}
           >
             <Box
               $padding={{ horizontal: 'md', top: 'base' }}
-              $height={isModal ? 'min(60vh, 350px)' : 'calc(100vh - 260px)'}
+              // TODO: DOM feature badly made - find a way to not calculate the height of the modal
+              $height={isModal ? 'min(60dvh, 350px)' : 'calc(100dvh - 180px)'}
             >
               <Box>
                 <DocSearchContent
@@ -239,22 +240,28 @@ export const DocMoveModal = ({
                         $gap="sm"
                         $padding="3xs"
                         $css={css`
-                          background-color: ${isSelected
-                            ? 'var(--c--contextuals--background--semantic--brand--tertiary)'
-                            : 'transparent'};
+                          background-color: ${
+                            isSelected
+                              ? 'var(--c--contextuals--background--semantic--brand--tertiary)'
+                              : 'transparent'
+                          };
                           border: 1px solid
-                            ${isSelected
-                              ? 'var(--c--contextuals--border--semantic--brand--tertiary)'
-                              : 'transparent'};
+                            ${
+                              isSelected
+                                ? 'var(--c--contextuals--border--semantic--brand--tertiary)'
+                                : 'transparent'
+                            };
                           border-radius: var(--c--globals--spacings--3xs);
 
                           /* Arrow key navigation highlight */
                           &[data-selected='true'] {
-                            ${!isSelected &&
-                            `
+                            ${
+                              !isSelected &&
+                              `
                                 background-color: var(--c--contextuals--background--semantic--contextual--primary);
                                 border-color: transparent;
-                              `}
+                              `
+                            }
                           }
                         `}
                         aria-selected={isSelected}
@@ -265,7 +272,6 @@ export const DocMoveModal = ({
                         />
                         <DocsGridItemDate
                           doc={docSearch}
-                          isDesktop={isModal}
                           isInTrashbin={false}
                         />
                       </Box>

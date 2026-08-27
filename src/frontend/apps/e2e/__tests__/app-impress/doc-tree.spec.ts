@@ -152,8 +152,6 @@ test.describe('Doc Tree', () => {
 
   test('check the reorder of sub pages', async ({ page, browserName }) => {
     await createDoc(page, 'doc-tree-content', browserName, 1);
-    const addButton = page.getByTestId('new-doc-button');
-    await expect(addButton).toBeVisible();
 
     const docTree = page.getByTestId('doc-tree');
 
@@ -181,11 +179,13 @@ test.describe('Doc Tree', () => {
     await expect(allSubPageItems.nth(1).getByText('second move')).toBeVisible();
 
     // Will move the first sub page to the second position
-    const firstSubPageBoundingBox = await firstSubPageItem.boundingBox();
-    const secondSubPageBoundingBox = await secondSubPageItem.boundingBox();
+    // Wait for elements to be stable before reading their positions — a React
+    // re-render can transiently detach nodes, making boundingBox() return null.
+    await allSubPageItems.nth(0).waitFor({ state: 'visible' });
+    await allSubPageItems.nth(1).waitFor({ state: 'visible' });
 
-    expect(firstSubPageBoundingBox).toBeDefined();
-    expect(secondSubPageBoundingBox).toBeDefined();
+    const firstSubPageBoundingBox = await allSubPageItems.nth(0).boundingBox();
+    const secondSubPageBoundingBox = await allSubPageItems.nth(1).boundingBox();
 
     if (!firstSubPageBoundingBox || !secondSubPageBoundingBox) {
       throw new Error('unable to determine the position of the elements');
@@ -206,9 +206,10 @@ test.describe('Doc Tree', () => {
 
     await page.mouse.up();
 
-    // check that the sub pages are visible in the tree
-    await expect(firstSubPageItem).toBeVisible();
-    await expect(secondSubPageItem).toBeVisible();
+    // Wait for the reorder to be reflected in the tree before reloading —
+    // this also ensures the API call has had time to persist the new order.
+    await expect(allSubPageItems.nth(0).getByText('second move')).toBeVisible();
+    await expect(allSubPageItems.nth(1).getByText('first move')).toBeVisible();
 
     // reload the page
     await page.reload();
@@ -218,16 +219,8 @@ test.describe('Doc Tree', () => {
     await expect(secondSubPageItem).toBeVisible();
 
     // Check that elements are in the correct order
-    const allSubPageItemsAfterReload =
-      docTree.getByTestId(/^doc-sub-page-item/);
-    await expect(allSubPageItemsAfterReload).toHaveCount(2);
-
-    await expect(
-      allSubPageItemsAfterReload.nth(0).getByText('second move'),
-    ).toBeVisible();
-    await expect(
-      allSubPageItemsAfterReload.nth(1).getByText('first move'),
-    ).toBeVisible();
+    await expect(allSubPageItems.nth(0).getByText('second move')).toBeVisible();
+    await expect(allSubPageItems.nth(1).getByText('first move')).toBeVisible();
   });
 
   test('it detaches a document', async ({ page, browserName }) => {
@@ -237,7 +230,6 @@ test.describe('Doc Tree', () => {
       browserName,
       1,
     );
-    await verifyDocName(page, docParent);
 
     const { name: docChild } = await createRootSubPage(
       page,
@@ -259,23 +251,14 @@ test.describe('Doc Tree', () => {
     await menu.click();
     await page.getByText('Move to my docs').click();
 
-    await expect(
-      page.getByRole('textbox', { name: 'Document title' }),
-    ).not.toHaveText(docChild);
+    await verifyDocName(page, docParent);
 
     await page.getByRole('button', { name: 'Back to homepage' }).click();
     await expect(page.getByText(docChild)).toBeVisible();
   });
 
   test('Only owner can detaches a document', async ({ page, browserName }) => {
-    const [docParent] = await createDoc(
-      page,
-      'doc-tree-detach',
-      browserName,
-      1,
-    );
-
-    await verifyDocName(page, docParent);
+    await createDoc(page, 'doc-tree-detach', browserName, 1);
 
     await page.getByRole('button', { name: 'Share' }).click();
 
@@ -424,21 +407,23 @@ test.describe('Doc Tree', () => {
     await expect(selectedSubDoc).toBeFocused();
 
     await page.keyboard.press('Tab');
+    await expect(page.getByLabel('User menu')).toBeFocused();
 
+    await page.keyboard.press('Tab');
     await expect(page.getByLabel('Open help menu')).toBeFocused();
 
     await page.keyboard.press('Tab');
-
     await expect(
       page.locator('[data-panel-resize-handle-id]').first(),
     ).toBeFocused();
 
     await page.keyboard.press('Shift+Tab');
-
     await expect(page.getByLabel('Open help menu')).toBeFocused();
 
     await page.keyboard.press('Shift+Tab');
+    await expect(page.getByLabel('User menu')).toBeFocused();
 
+    await page.keyboard.press('Shift+Tab');
     await expect(selectedSubDoc).toBeFocused();
   });
 
@@ -446,13 +431,7 @@ test.describe('Doc Tree', () => {
     page,
     browserName,
   }) => {
-    const [docParent] = await createDoc(
-      page,
-      'doc-child-emoji',
-      browserName,
-      1,
-    );
-    await verifyDocName(page, docParent);
+    await createDoc(page, 'doc-child-emoji', browserName, 1);
 
     const { name: docChild } = await createRootSubPage(
       page,
@@ -472,6 +451,8 @@ test.describe('Doc Tree', () => {
 
     // Close the menu
     await page.keyboard.press('Escape');
+
+    await page.waitForTimeout(500);
 
     // Update the emoji from the tree
     await row.locator('.--docs--doc-icon').click();

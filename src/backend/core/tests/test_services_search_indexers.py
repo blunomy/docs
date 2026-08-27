@@ -12,13 +12,14 @@ import pytest
 import responses
 from requests import HTTPError
 
-from core import factories, models, utils
+from core import factories, models
 from core.services.search_indexers import (
     BaseDocumentIndexer,
     FindDocumentIndexer,
     get_document_indexer,
     get_visited_document_ids_of,
 )
+from core.utils.yjs import base64_yjs_to_text
 
 pytestmark = pytest.mark.django_db
 
@@ -199,7 +200,7 @@ def test_services_search_indexers_serialize_document_returns_expected_json():
         "depth": 1,
         "path": document.path,
         "numchild": 1,
-        "content": utils.base64_yjs_to_text(document.content),
+        "content": base64_yjs_to_text(document.content),
         "created_at": document.created_at.isoformat(),
         "updated_at": document.updated_at.isoformat(),
         "reach": document.link_reach,
@@ -480,7 +481,7 @@ def test_get_visited_document_ids_of():
 
     doc1, doc2, _ = factories.DocumentFactory.create_batch(3)
 
-    create_link = partial(models.LinkTrace.objects.create, user=user, is_masked=False)
+    create_link = partial(models.LinkTrace.objects.create, user=user)
 
     create_link(document=doc1)
     create_link(document=doc2)
@@ -514,7 +515,7 @@ def test_get_visited_document_ids_of_deleted():
     doc_deleted = factories.DocumentFactory()
     doc_ancestor_deleted = factories.DocumentFactory(parent=doc_deleted)
 
-    create_link = partial(models.LinkTrace.objects.create, user=user, is_masked=False)
+    create_link = partial(models.LinkTrace.objects.create, user=user)
 
     create_link(document=doc)
     create_link(document=doc_deleted)
@@ -565,7 +566,7 @@ def test_services_search_indexers_search(mock_post, indexer_settings):
 
     doc1, doc2, _ = factories.DocumentFactory.create_batch(3)
 
-    create_link = partial(models.LinkTrace.objects.create, user=user, is_masked=False)
+    create_link = partial(models.LinkTrace.objects.create, user=user)
 
     create_link(document=doc1)
     create_link(document=doc2)
@@ -606,7 +607,7 @@ def test_services_search_indexers_search_nb_results(mock_post, indexer_settings)
 
     doc1, doc2, _ = factories.DocumentFactory.create_batch(3)
 
-    create_link = partial(models.LinkTrace.objects.create, user=user, is_masked=False)
+    create_link = partial(models.LinkTrace.objects.create, user=user)
 
     create_link(document=doc1)
     create_link(document=doc2)

@@ -2,7 +2,7 @@
 
 Thank you for taking the time to contribute! Please follow these guidelines to ensure a smooth and productive workflow. 🚀🚀🚀
 
-We appreciate and value all kind of contributions (code, bug reports, design, feature requests, translations or documentation) the more diverse the Docs contributors community is, the better, because that's how [we make commons](http://wemakecommons.org/).
+We appreciate and value all kinds of contributions (code, bug reports, design, feature requests, translations or documentation) the more diverse the Docs contributors community is, the better, because that's how [we make commons](http://wemakecommons.org/).
 
 ## Meet the maintainers team
 
@@ -60,7 +60,7 @@ The project is licensed with Mozilla Public License Version 2.0 but be aware tha
 
 ### Coordination around issues
 
-We use use EPICs to group improvements on features. (See an [example](https://github.com/suitenumerique/docs/issues/1650))
+We use EPICs to group improvements on features. (See an [example](https://github.com/suitenumerique/docs/issues/1650))
 
 We use GitHub Projects to:
 * Track progress on [accessibility](https://github.com/orgs/suitenumerique/projects/19)
@@ -83,8 +83,8 @@ For the CI to pass contributors are required to:
 * [sign their commits with your SSH or GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification) with `git commit -S`.
 * use a special formatting for their commits (see instructions below)
 * check the linting: `make lint && make frontend-lint`
-* Run the tests: `make test` and make sure all require test pass (we can't merge otherwise)
-* add a changelog entry (not required for small changes
+* Run the tests: `make test` and make sure all required tests pass (we can't merge otherwise)
+* add a changelog entry (not required for small changes)
 
 ### Pull requests
 
@@ -157,17 +157,24 @@ We're writing this down so everyone knows where we stand, and so we can keep wel
 
 Please remember: LaSuite is maintained by humans for humans.
 
-### Contributing using AI tools
+### Human accountability
 
 Using AI to help write, review, or improve your contribution is fine.
 
-Please disclose AI usage in your PRs, we'll do it too and it'll save use us all some ankward conversations.
+Please disclose AI usage in your PRs, we'll do it too and it'll save us all some awkward conversations.
 
 The rules are simple: **you must understand and be able to explain the code that you submit.**
 
 As maintainers, we might ask to walk us through your code. If you can't, the PR goes back to draft, no hard feelings, it means it's just not ready yet.
 
 Remember that for your contributions to go through the CI, your commits have to be signed off  with `git commit --signoff`. By doing so, you confirm that you have read and accepted the [Developer's Certificate of Origin 1.1](https://developercertificate.org/). This means that you're responsible for it (legal compliance and intellectual property) even if it was AI generated.
+
+Therefore our policy prohibits:
+- Listing AI as a co-author on commit
+- Using AI co-signing on commits
+- Adding trailers like "assisted-by" or "co-developed" that attribute work to AI
+
+This isn’t about undermining AI’s value as a tool, it’s about ensuring clear accountability. When issues arise, there must be a human who can understand the root cause and implement a solution.
 
 Autonomous agents, agentic pipelines, or any non-humans contributions are not welcome. They'll be closed without review by maintainers.
 

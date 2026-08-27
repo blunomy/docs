@@ -14,7 +14,7 @@ export type QuickSearchAction = {
 };
 
 export type QuickSearchData<T> = {
-  groupName: string;
+  groupName?: string;
   groupKey?: string;
   elements: T[];
   emptyString?: string;
@@ -43,6 +43,7 @@ export const QuickSearch = ({
   inputValue,
   showInput = true,
   label,
+  loading,
   placeholder,
   beforeList,
   children,
@@ -74,7 +75,7 @@ export const QuickSearch = ({
             </QuickSearchInput>
           )}
           {beforeList}
-          <Command.List id={listId} aria-label={label} role="listbox">
+          <Command.List id={listId} aria-busy={loading}>
             <Box>{children}</Box>
           </Command.List>
         </Command>

@@ -16,6 +16,8 @@ import * as XLMultiColumn from '@blocknote/xl-multi-column';
  * from ColumnBlock.
  * This prevents dragging a block onto another block from
  * automatically creating a multi-column layout.
+ *
+ * TODO: This is a temporary workaround until BlockNote provides a built-in way to disable the drop handler for specific blocks.
  * @param schema
  * @returns
  */
@@ -39,7 +41,13 @@ const withMultiColumnNoDropHandler = <
   });
 };
 
-let modulesXL = undefined;
+type ModulesXL =
+  | (Omit<typeof XLMultiColumn, 'withMultiColumn'> & {
+      withMultiColumn: typeof withMultiColumnNoDropHandler;
+    })
+  | undefined;
+
+let modulesXL: ModulesXL = undefined;
 if (process.env.NEXT_PUBLIC_PUBLISH_AS_MIT === 'false') {
   modulesXL = {
     ...XLMultiColumn,
@@ -47,10 +55,4 @@ if (process.env.NEXT_PUBLIC_PUBLISH_AS_MIT === 'false') {
   };
 }
 
-type ModulesXL =
-  | (Omit<typeof XLMultiColumn, 'withMultiColumn'> & {
-      withMultiColumn: typeof withMultiColumnNoDropHandler;
-    })
-  | undefined;
-
-export default modulesXL as ModulesXL;
+export default modulesXL;

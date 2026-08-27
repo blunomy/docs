@@ -1,142 +1,105 @@
-import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createGlobalStyle, css } from 'styled-components';
+import { css } from 'styled-components';
 
-import { Box, HorizontalSeparator, SeparatedSection } from '@/components';
-import { useConfig } from '@/core/config/api/useConfig';
-import { useCunninghamTheme } from '@/cunningham';
-import { ButtonLogin } from '@/features/auth';
-import { HEADER_HEIGHT } from '@/features/header/conf';
-import { HelpMenu } from '@/features/help';
-import { LanguagePicker } from '@/features/language';
-import { useResponsiveStore } from '@/stores';
+import { Box } from '@/components';
+import { useResponsiveStore } from '@/stores/useResponsiveStore';
 
 import { useLeftPanelStore } from '../stores';
 
 import { LeftPanelContent } from './LeftPanelContent';
+import { LeftPanelFooter } from './LeftPanelFooter';
 import { LeftPanelHeader } from './LeftPanelHeader';
 
-const MobileLeftPanelStyle = createGlobalStyle`
-  body {
-    overflow: hidden;
-  }
-`;
-
-export const LeftPanel = () => {
-  const { isDesktop } = useResponsiveStore();
-  if (isDesktop) {
-    return <LeftPanelDesktop />;
-  }
-
-  return <LeftPanelMobile />;
-};
-
-export const LeftPanelDesktop = () => {
+export const LeftPanel = ({ isResizable }: { isResizable?: boolean }) => {
   const { t } = useTranslation();
-  const { data: config } = useConfig();
-  /**
-   * The onboarding can be disable, so we need to check if it's enabled before displaying the help menu.
-   * TODO: As soon as we get more than one fixed element in the help menu,
-   * we should remove this condition and display the help menu even if the onboarding is disabled
-   */
-  const showHelpMenu =
-    config?.theme_customization?.onboarding?.enabled ||
-    !!config?.CRISP_WEBSITE_ID ||
-    !!config?.theme_customization?.help?.documentation_url;
-
-  return (
-    <Box
-      data-testid="left-panel-desktop"
-      $css={css`
-        height: calc(100vh - ${HEADER_HEIGHT}px);
-        width: 100%;
-        overflow: hidden;
-        background-color: var(--c--contextuals--background--surface--primary);
-      `}
-      className="--docs--left-panel-desktop"
-      as="nav"
-      aria-label={t('Document sections')}
-    >
-      <Box
-        $css={css`
-          flex: 0 0 auto;
-        `}
-      >
-        <LeftPanelHeader />
-      </Box>
-      <LeftPanelContent />
-      {showHelpMenu && (
-        <SeparatedSection showSeparator={false}>
-          <Box $padding={{ horizontal: 'sm' }} $justify="flex-start">
-            <HelpMenu />
-          </Box>
-        </SeparatedSection>
-      )}
-    </Box>
-  );
-};
-
-const LeftPanelMobile = () => {
-  const { t } = useTranslation();
-  const { spacingsTokens } = useCunninghamTheme();
-  const { closePanel, isPanelOpenMobile } = useLeftPanelStore();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    closePanel({ type: 'mobile' });
-  }, [pathname, closePanel]);
+  const { isMobile, isTablet } = useResponsiveStore();
+  const { isPanelOpen, closePanel } = useLeftPanelStore();
 
   return (
     <>
-      {isPanelOpenMobile && <MobileLeftPanelStyle />}
+      {isMobile && (
+        <Box
+          $css={css`
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background-color: rgba(0, 0, 0, 0.3);
+            transition: opacity 0.2s ease-in-out;
+            opacity: ${isPanelOpen ? 1 : 0};
+            pointer-events: ${isPanelOpen ? 'auto' : 'none'};
+          `}
+          onClick={closePanel}
+        />
+      )}
       <Box
-        $hasTransition
-        $height="100vh"
+        as="nav"
+        className="--docs--left-panel"
+        data-testid="left-panel"
+        aria-label={t('Left panel')}
+        $width={isResizable ? '100%' : '300px'}
+        $height="100dvh"
+        $overflow="hidden"
         $css={css`
-          z-index: 999;
-          width: 100dvw;
-          height: calc(100dvh - 52px);
-          border-right: 1px solid var(--c--globals--colors--gray-200);
-          position: fixed;
-          transform: translateX(${isPanelOpenMobile ? '0' : '-100dvw'});
+          z-index: 1;
           background-color: var(--c--contextuals--background--surface--primary);
-          overflow-y: auto;
-          overflow-x: hidden;
+          transition:
+            transform 0.2s ease-in-out,
+            width 0.2s ease-in-out;
+
+          ${
+            !isResizable
+              ? css`
+                  border-right: 1px solid
+                    var(--c--contextuals--border--surface--primary);
+                `
+              : ''
+          }
+
+          ${
+            isTablet && !isMobile
+              ? css`
+                  ${
+                    !isPanelOpen
+                      ? css`
+                          transform: translateX(${isPanelOpen ? '0' : '-100%'});
+                          width: 0;
+                        `
+                      : ''
+                  }
+                `
+              : ''
+          }
+
+          ${
+            isMobile
+              ? css`
+                  box-shadow: 10px 0px 10px 0px rgba(0, 0, 0, 0.05);
+                  position: fixed;
+                  z-index: 1000;
+                  top: 0;
+                  left: 0;
+                  ${
+                    !isPanelOpen
+                      ? css`
+                          transform: translateX(-100%);
+                          width: 0;
+                        `
+                      : ''
+                  }
+                `
+              : ''
+          }
         `}
-        className="--docs--left-panel-mobile"
       >
         <Box
-          data-testid="left-panel-mobile"
-          as="nav"
-          aria-label={t('Document sections')}
           $css={css`
-            width: 100%;
-            justify-content: center;
-            align-items: center;
-            gap: ${spacingsTokens['base']};
+            flex: 0 0 auto;
           `}
-          $height="inherit"
         >
           <LeftPanelHeader />
-          <LeftPanelContent />
-          <Box $width="100%">
-            <HorizontalSeparator $margin="none" />
-            <SeparatedSection showSeparator={false}>
-              <Box
-                $justify="end"
-                $align="center"
-                $gap={spacingsTokens['xs']}
-                $direction="row"
-                $padding={{ horizontal: 'sm' }}
-              >
-                <HelpMenu colorButton="brand" />
-                <ButtonLogin />
-                <LanguagePicker />
-              </Box>
-            </SeparatedSection>
-          </Box>
         </Box>
+        <LeftPanelContent />
+        <LeftPanelFooter />
       </Box>
     </>
   );

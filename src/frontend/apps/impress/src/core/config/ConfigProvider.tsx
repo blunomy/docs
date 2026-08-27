@@ -66,24 +66,42 @@ export const ConfigProvider = ({ children }: PropsWithChildren) => {
   }, [conf?.FRONTEND_THEME, setTheme]);
 
   useEffect(() => {
-    if (!conf?.POSTHOG_KEY) {
+    if (!conf?.POSTHOG_KEY || !conf?.POSTHOG_HOST) {
       return;
     }
 
+    const key = conf.POSTHOG_KEY;
+    const host = conf.POSTHOG_HOST;
     void import('@/services').then(({ PostHogAnalytic }) => {
-      new PostHogAnalytic(conf.POSTHOG_KEY);
+      new PostHogAnalytic({ key, host });
     });
-  }, [conf?.POSTHOG_KEY]);
+  }, [conf?.POSTHOG_KEY, conf?.POSTHOG_HOST]);
 
   useEffect(() => {
-    if (!conf?.CRISP_WEBSITE_ID) {
+    const frontendVersion = process.env.NEXT_PUBLIC_APP_VERSION;
+
+    if (
+      !conf?.RELEASE_VERSION ||
+      !frontendVersion ||
+      conf.RELEASE_VERSION === frontendVersion
+    ) {
       return;
     }
 
-    void import('@/services').then(({ CrispAnalytic }) => {
-      new CrispAnalytic({ websiteId: conf.CRISP_WEBSITE_ID });
-    });
-  }, [conf?.CRISP_WEBSITE_ID]);
+    // Avoid infinite reload loops: only reload once per backend version
+    const RELOAD_VERSION_KEY = 'reload-version';
+    try {
+      const reloadedForVersion = sessionStorage.getItem(RELOAD_VERSION_KEY);
+      if (reloadedForVersion === conf.RELEASE_VERSION) {
+        return;
+      }
+
+      sessionStorage.setItem(RELOAD_VERSION_KEY, conf.RELEASE_VERSION);
+      window.location.reload();
+    } catch {
+      console.warn('Failed to access sessionStorage for version reload logic');
+    }
+  }, [conf?.RELEASE_VERSION]);
 
   if (!conf) {
     return (

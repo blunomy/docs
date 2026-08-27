@@ -1,11 +1,25 @@
 import { expect, test } from '@playwright/test';
 
 import {
+  CONFIG,
   TestLanguage,
   getCurrentConfig,
   overrideConfig,
   waitForLanguageSwitch,
 } from './utils-common';
+
+const legalLinks = {
+  personal_data:
+    'https://lasuite.numerique.gouv.fr/legal/docs/donnees-personnelles-cookies',
+  terms_of_use:
+    'https://lasuite.numerique.gouv.fr/legal/docs/modalite-utilisation',
+  accessibility_statement:
+    'https://lasuite.numerique.gouv.fr/legal/docs/declaration-accessibilite',
+  legal_notice: 'https://lasuite.numerique.gouv.fr/legal/docs',
+};
+
+const supportMailto =
+  'mailto:support-docs@numerique.gouv.fr?subject=Aide%20Docs%27';
 
 test.describe('Help feature', () => {
   test.describe('Documentation button', () => {
@@ -72,11 +86,17 @@ test.describe('Help feature', () => {
 
   test.describe('Support button', () => {
     if (process.env.IS_INSTANCE !== 'true') {
-      test('is not displayed if CRISP_WEBSITE_ID is not set', async ({
+      test('is not displayed if support_mailto is not set', async ({
         page,
       }) => {
         await overrideConfig(page, {
-          CRISP_WEBSITE_ID: '',
+          theme_customization: {
+            ...CONFIG.theme_customization,
+            help: {
+              ...CONFIG.theme_customization.help,
+              support_mailto: '',
+            },
+          },
         });
 
         await page.goto('/');
@@ -87,9 +107,15 @@ test.describe('Help feature', () => {
         ).toBeHidden();
       });
 
-      test('is displayed if CRISP_WEBSITE_ID is set', async ({ page }) => {
+      test('is displayed if support_mailto is set', async ({ page }) => {
         await overrideConfig(page, {
-          CRISP_WEBSITE_ID: 'test_website_id',
+          theme_customization: {
+            ...CONFIG.theme_customization,
+            help: {
+              ...CONFIG.theme_customization.help,
+              support_mailto: supportMailto,
+            },
+          },
         });
 
         await page.goto('/');
@@ -104,23 +130,122 @@ test.describe('Help feature', () => {
     }
 
     if (process.env.IS_INSTANCE === 'true') {
-      test('it displays Crisp chatbox', async ({ page }) => {
+      test('is displayed when support_mailto is configured', async ({
+        page,
+      }) => {
         const currentConfig = await getCurrentConfig(page);
         test.skip(
-          !currentConfig.CRISP_WEBSITE_ID,
-          'Crisp chatbox is not enabled',
+          !currentConfig.theme_customization?.help?.support_mailto,
+          'Support mailto is not configured',
         );
         await page.goto('/');
 
         await page.getByRole('button', { name: 'Open help menu' }).click();
-        await page
-          .getByRole('menuitem', {
+        await expect(
+          page.getByRole('menuitem', {
             name: 'Get Support',
-          })
-          .click();
+          }),
+        ).toBeVisible();
+      });
+    }
+  });
 
-        const crispElement = page.locator('#crisp-chatbox');
-        await expect(crispElement).toBeAttached();
+  test.describe('Legal submenu', () => {
+    if (process.env.IS_INSTANCE !== 'true') {
+      test('is not displayed if legal_links are not set', async ({ page }) => {
+        await overrideConfig(page, {
+          theme_customization: {
+            ...CONFIG.theme_customization,
+            help: {
+              ...CONFIG.theme_customization.help,
+              legal_links: {
+                personal_data: '',
+                terms_of_use: '',
+                accessibility_statement: '',
+                legal_notice: '',
+              },
+            },
+            onboarding: {
+              enabled: true,
+            },
+          },
+        });
+
+        await page.goto('/');
+
+        await page.getByRole('button', { name: 'Open help menu' }).click();
+        await expect(
+          page.getByRole('menuitem', { name: 'Legal' }),
+        ).toBeHidden();
+      });
+
+      test('is displayed and opens legal links when legal_links are set', async ({
+        page,
+      }) => {
+        await overrideConfig(page, {
+          theme_customization: {
+            ...CONFIG.theme_customization,
+            help: {
+              ...CONFIG.theme_customization.help,
+              legal_links: legalLinks,
+            },
+            onboarding: {
+              enabled: true,
+            },
+          },
+        });
+
+        await page.goto('/');
+
+        await page.getByRole('button', { name: 'Open help menu' }).click();
+        await page.getByRole('menuitem', { name: 'Legal' }).hover();
+
+        await expect(
+          page.getByRole('menuitem', { name: 'Personal data and cookies' }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole('menuitem', { name: 'Terms of use' }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole('menuitem', { name: 'Accessibility statement' }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole('menuitem', { name: 'Legal notice' }),
+        ).toBeVisible();
+
+        const personalDataItem = page.getByRole('menuitem', {
+          name: 'Personal data and cookies',
+        });
+
+        const [newPage] = await Promise.all([
+          page.context().waitForEvent('page'),
+          personalDataItem.click(),
+        ]);
+
+        await expect(newPage).toHaveURL(legalLinks.personal_data);
+      });
+    }
+
+    if (process.env.IS_INSTANCE === 'true') {
+      test('is displayed when legal_links are configured', async ({ page }) => {
+        const currentConfig = await getCurrentConfig(page);
+        const configuredLegalLinks =
+          currentConfig.theme_customization?.help?.legal_links;
+
+        test.skip(
+          !configuredLegalLinks?.personal_data &&
+            !configuredLegalLinks?.terms_of_use &&
+            !configuredLegalLinks?.accessibility_statement &&
+            !configuredLegalLinks?.legal_notice,
+          'Legal links are not configured',
+        );
+
+        await page.goto('/');
+
+        await page.getByRole('button', { name: 'Open help menu' }).click();
+        await expect(
+          page.getByRole('menuitem', { name: 'Legal' }),
+        ).toBeVisible();
       });
     }
   });
@@ -139,7 +264,9 @@ test.describe('Help feature', () => {
 
       await page.goto('/');
 
-      await expect(page.getByRole('button', { name: 'New doc' })).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: 'New', exact: true }),
+      ).toBeVisible();
 
       await expect(
         page.getByRole('button', { name: 'Open help menu' }),
@@ -153,7 +280,8 @@ test.describe('Help feature', () => {
         theme_customization: {
           onboarding: {
             enabled: true,
-            learn_more_url: 'https://example.com/learn-more',
+            learn_more_url: 'http://localhost:3000/learn-more',
+            ready_template_url: 'http://localhost:3000/ready-template',
           },
         },
       });
@@ -184,18 +312,19 @@ test.describe('Help feature', () => {
         '0',
       );
 
-      await page.getByTestId('onboarding-step-3').click();
-      await expect(page.getByTestId('onboarding-step-3')).toHaveAttribute(
-        'tabindex',
-        '0',
-      );
+      const step3 = page.getByTestId('onboarding-step-3');
+      await step3.click();
+      await expect(step3).toHaveAttribute('tabindex', '0');
+      await expect(
+        step3.getByRole('link', { name: 'ready-made template' }),
+      ).toHaveAttribute('href', 'http://localhost:3000/ready-template');
 
       const learnMoreLink = page.getByRole('link', {
         name: 'Learn more docs features',
       });
       await expect(learnMoreLink).toHaveAttribute(
         'href',
-        'https://example.com/learn-more',
+        'http://localhost:3000/learn-more',
       );
       await learnMoreLink.click();
 
@@ -241,6 +370,16 @@ test.describe('Help feature', () => {
       await expect(
         modal.getByRole('button', { name: /Suivant/i }),
       ).toBeVisible();
+      await modal
+        .getByText(/Tirez parti de la bibliothèque de contenu/)
+        .first()
+        .click();
+      await expect(
+        modal.getByText(/Commencez à partir de/).first(),
+      ).toBeVisible();
+      await expect(modal.getByRole('link')).toHaveText(
+        "modèles prêts à l'emploi",
+      );
     });
 
     test('Modal is displayed automatically on first connection', async ({
@@ -249,7 +388,9 @@ test.describe('Help feature', () => {
     }) => {
       await page.goto('/');
 
-      await expect(page.getByRole('button', { name: 'New doc' })).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: 'New', exact: true }),
+      ).toBeVisible();
       await expect(page.getByTestId('onboarding-modal')).toBeHidden();
 
       await page.route(/.*\/api\/v1.0\/users\/me\//, async (route) => {

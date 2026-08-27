@@ -13,21 +13,18 @@ export const SignIn = async (
   await keycloakSignIn(page, browserName, fromHome);
 };
 
+export const logOut = async (page: Page) => {
+  await page.getByLabel('User menu').click();
+  await page.getByText('Logout', { exact: true }).click();
+};
+
 export const customSignIn = async (
   page: Page,
   browserName: string,
   fromHome = true,
 ) => {
   // Check if already signed in (Silent login or session still valid)
-  if (
-    await page
-      .locator('header')
-      .first()
-      .getByRole('button', {
-        name: 'Logout',
-      })
-      .isVisible()
-  ) {
+  if (await page.getByLabel('User menu').isVisible()) {
     return;
   }
 

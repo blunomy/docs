@@ -4,6 +4,7 @@ import {
   createDoc,
   goToGridDoc,
   mockedDocument,
+  saveContent,
   verifyDocName,
 } from './utils-common';
 import { openSuggestionMenu, writeInEditor } from './utils-editor';
@@ -16,11 +17,9 @@ test.describe('Doc Version', () => {
   test('it displays the doc versions', async ({ page, browserName }) => {
     const [randomDoc] = await createDoc(page, 'doc-version', browserName, 1);
 
-    await verifyDocName(page, randomDoc);
-
     // Initially, there is no version
     await page.getByLabel('Open the document options').click();
-    await page.getByRole('menuitem', { name: 'Version history' }).click();
+    await page.getByRole('menuitem', { name: 'History' }).click();
     await expect(page.getByText('History', { exact: true })).toBeVisible();
 
     const modal = page.getByRole('dialog', { name: 'Version history' });
@@ -32,10 +31,7 @@ test.describe('Doc Version', () => {
 
     await writeInEditor({ page, text: 'Hello World' });
 
-    // It will trigger a save, no version created yet (initial version is not counted)
-    await goToGridDoc(page, {
-      title: randomDoc,
-    });
+    await saveContent(page, randomDoc);
 
     await expect(page.getByText('Hello World')).toBeVisible();
 
@@ -51,10 +47,7 @@ test.describe('Doc Version', () => {
 
     await expect(calloutBlock).toBeVisible();
 
-    // It will trigger a save and create a version this time
-    await goToGridDoc(page, {
-      title: randomDoc,
-    });
+    await saveContent(page, randomDoc);
 
     await expect(page.getByText('Hello World')).toBeHidden();
     await expect(page.getByText('It will create a version')).toBeVisible();
@@ -64,17 +57,14 @@ test.describe('Doc Version', () => {
     // Write more
     await writeInEditor({ page, text: 'It will create a second version' });
 
-    // It will trigger a save and create a second version
-    await goToGridDoc(page, {
-      title: randomDoc,
-    });
+    await saveContent(page, randomDoc);
 
     await expect(
       page.getByText('It will create a second version'),
     ).toBeVisible();
 
     await page.getByLabel('Open the document options').click();
-    await page.getByRole('menuitem', { name: 'Version history' }).click();
+    await page.getByRole('menuitem', { name: 'History' }).click();
 
     await expect(panel).toBeVisible();
     await expect(page.getByText('History', { exact: true })).toBeVisible();
@@ -124,9 +114,7 @@ test.describe('Doc Version', () => {
     await verifyDocName(page, 'Mocked document');
 
     await page.getByLabel('Open the document options').click();
-    await expect(
-      page.getByRole('menuitem', { name: 'Version history' }),
-    ).toBeDisabled();
+    await expect(page.getByRole('menuitem', { name: 'History' })).toBeHidden();
   });
 
   test('it restores the doc version', async ({ page, browserName }) => {
@@ -144,18 +132,14 @@ test.describe('Doc Version', () => {
     await thread.locator('[data-test="save"]').click();
     await expect(thread).toBeHidden();
 
-    await goToGridDoc(page, {
-      title: randomDoc,
-    });
+    await saveContent(page, randomDoc);
 
     await expect(editor.getByText('Hello')).toBeVisible();
     await page.locator('.bn-block-outer').last().click();
     await page.keyboard.press('Enter');
     await page.locator('.bn-block-outer').last().fill('World');
 
-    await goToGridDoc(page, {
-      title: randomDoc,
-    });
+    await saveContent(page, randomDoc);
 
     await expect(page.getByText('World')).toBeVisible();
 
@@ -165,7 +149,7 @@ test.describe('Doc Version', () => {
     await expect(thread).toBeHidden();
 
     await page.getByLabel('Open the document options').click();
-    await page.getByRole('menuitem', { name: 'Version history' }).click();
+    await page.getByRole('menuitem', { name: 'History' }).click();
 
     const modal = page.getByRole('dialog', { name: 'Version history' });
     const panel = modal.getByLabel('Version list');
@@ -185,23 +169,23 @@ test.describe('Doc Version', () => {
 
     await page.getByLabel('Restore', { exact: true }).click();
 
-    await page.waitForTimeout(500);
+    const mainEditor = page.getByLabel('Document editor');
 
-    await expect(editor.getByText('Hello')).toBeVisible();
-    await expect(editor.getByText('World')).toBeHidden();
+    await expect(mainEditor.getByText('Hello')).toBeVisible();
+    await expect(mainEditor.getByText('World')).toBeHidden();
 
     // The old comment is not restored
-    await expect(editor.getByText('Hello')).toHaveCSS(
+    await expect(mainEditor.getByText('Hello')).toHaveCSS(
       'background-color',
       'rgba(0, 0, 0, 0)',
     );
 
     // We can add a new comment
-    await editor.getByText('Hello').selectText();
+    await mainEditor.getByText('Hello').selectText();
     await page.getByRole('button', { name: 'Add comment' }).click();
 
     await thread.getByRole('paragraph').first().fill('This is a comment');
     await thread.locator('[data-test="save"]').click();
-    await expect(editor.getByText('Hello')).toHaveClass('bn-thread-mark');
+    await expect(mainEditor.getByText('Hello')).toHaveClass('bn-thread-mark');
   });
 });

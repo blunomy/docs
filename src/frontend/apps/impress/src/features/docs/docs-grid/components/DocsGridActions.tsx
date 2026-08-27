@@ -1,16 +1,14 @@
-import { useModal } from '@gouvfr-lasuite/cunningham-react';
+import {
+  Button,
+  VariantType,
+  useToastProvider,
+} from '@gouvfr-lasuite/cunningham-react';
+import { DropdownMenu, DropdownMenuItem } from '@gouvfr-lasuite/ui-kit';
 import dynamic from 'next/dynamic';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { css } from 'styled-components';
 
-import ContentCopySVG from '@/assets/icons/ui-kit/content_copy.svg';
-import DeleteSVG from '@/assets/icons/ui-kit/delete.svg';
-import DocMoveInSVG from '@/assets/icons/ui-kit/doc-move-in.svg';
-import GroupSVG from '@/assets/icons/ui-kit/group.svg';
-import KeepSVG from '@/assets/icons/ui-kit/keep.svg';
-import KeepOffSVG from '@/assets/icons/ui-kit/keep_off.svg';
-import MoreHorizSVG from '@/assets/icons/ui-kit/more_horiz.svg';
-import { DropdownMenu, DropdownMenuOption, Icon } from '@/components';
+import { Icon } from '@/components/Icon';
 import {
   Doc,
   KEY_LIST_DOC,
@@ -18,10 +16,21 @@ import {
   useCreateFavoriteDoc,
   useDeleteFavoriteDoc,
   useDuplicateDoc,
+  useRestoreDoc,
   useTrans,
 } from '@/docs/doc-management';
+import ContentCopyIcon from '@/icons/content_copy.svg';
+import DeleteIcon from '@/icons/delete.svg';
+import DocMoveInIcon from '@/icons/doc-move-in.svg';
+import GroupIcon from '@/icons/group.svg';
+import LeaveIcon from '@/icons/leave.svg';
+import MoreIcon from '@/icons/more_horiz.svg';
+import StarSlashIcon from '@/icons/star-slash.svg';
+import StarIcon from '@/icons/star.svg';
 import { focusMainContentStart } from '@/layouts/utils';
 import { useFocusStore } from '@/stores';
+
+import { KEY_LIST_DOC_TRASHBIN } from '../api/useDocsTrashbin';
 
 import { DocMoveModal } from './DocMoveModal';
 
@@ -41,18 +50,39 @@ const ModalRemoveDoc = dynamic(
   { ssr: false },
 );
 
+const ConfirmationLeaveModal = dynamic(
+  () =>
+    import('@/docs/doc-share/components/ConfirmationLeaveModal').then(
+      (mod) => ({
+        default: mod.ConfirmationLeaveModal,
+      }),
+    ),
+  { ssr: false },
+);
+
 interface DocsGridActionsProps {
   doc: Doc;
+  isInTrashbin?: boolean;
 }
 
-export const DocsGridActions = ({ doc }: DocsGridActionsProps) => {
-  const { t } = useTranslation();
-  const restoreFocus = useFocusStore((state) => state.restoreFocus);
+export const DocsGridActions = ({
+  doc,
+  isInTrashbin,
+}: DocsGridActionsProps) => {
+  return isInTrashbin ? (
+    <DocsGridTrashbinActions doc={doc} />
+  ) : (
+    <DocsGridActionsGlobal doc={doc} />
+  );
+};
 
-  const deleteModal = useModal();
-  const shareModal = useModal();
-  const importModal = useModal();
-  const { untitledDocument } = useTrans();
+const DocsGridActionsGlobal = ({ doc }: { doc: Doc }) => {
+  const { t } = useTranslation();
+  const { restoreFocus } = useFocusStore();
+  const [isModalRemoveOpen, setIsModalRemoveOpen] = useState(false);
+  const [isModalLeaveOpen, setIsModalLeaveOpen] = useState(false);
+  const [isModalShareOpen, setIsModalShareOpen] = useState(false);
+  const [isModalMoveOpen, setIsModalMoveOpen] = useState(false);
 
   const { mutate: duplicateDoc } = useDuplicateDoc({
     onSuccess: () => {
@@ -69,13 +99,13 @@ export const DocsGridActions = ({ doc }: DocsGridActionsProps) => {
     listInvalidQueries: [KEY_LIST_DOC, KEY_LIST_FAVORITE_DOC],
   });
 
-  const options: DropdownMenuOption[] = [
+  const options: DropdownMenuItem[] = [
     {
-      label: doc.is_favorite ? t('Unpin') : t('Pin'),
+      label: doc.is_favorite ? t('Unstar') : t('Star'),
       icon: doc.is_favorite ? (
-        <KeepOffSVG width={24} height={24} aria-hidden="true" />
+        <StarSlashIcon width={18} height={18} aria-hidden="true" />
       ) : (
-        <KeepSVG width={24} height={24} aria-hidden="true" />
+        <StarIcon width={18} height={18} aria-hidden="true" />
       ),
       callback: () => {
         if (doc.is_favorite) {
@@ -84,31 +114,31 @@ export const DocsGridActions = ({ doc }: DocsGridActionsProps) => {
           makeFavoriteDoc.mutate({ id: doc.id });
         }
       },
-      testId: `docs-grid-actions-${doc.is_favorite ? 'unpin' : 'pin'}-${doc.id}`,
+      testId: `docs-grid-actions-${doc.is_favorite ? 'unstar' : 'star'}-${doc.id}`,
       showSeparator: true,
     },
     {
       label: t('Share'),
-      icon: <GroupSVG width={24} height={24} aria-hidden="true" />,
+      icon: <GroupIcon width={18} height={18} aria-hidden="true" />,
       callback: () => {
-        shareModal.open();
+        setIsModalShareOpen(true);
       },
 
       testId: `docs-grid-actions-share-${doc.id}`,
     },
     {
       label: t('Move into a doc'),
-      icon: <DocMoveInSVG width={24} height={24} aria-hidden="true" />,
+      icon: <DocMoveInIcon width={18} height={18} aria-hidden="true" />,
       callback: () => {
-        importModal.open();
+        setIsModalMoveOpen(true);
       },
-      testId: `docs-grid-actions-import-${doc.id}`,
-      show: doc.abilities.move,
+      testId: `docs-grid-actions-move-${doc.id}`,
+      isHidden: !doc.abilities.move,
     },
     {
       label: t('Duplicate'),
-      icon: <ContentCopySVG width={24} height={24} aria-hidden="true" />,
-      disabled: !doc.abilities.duplicate,
+      icon: <ContentCopyIcon width={18} height={18} aria-hidden="true" />,
+      isDisabled: !doc.abilities.duplicate,
       callback: () => {
         duplicateDoc({
           docId: doc.id,
@@ -119,74 +149,163 @@ export const DocsGridActions = ({ doc }: DocsGridActionsProps) => {
       showSeparator: true,
     },
     {
+      label: t('Leave'),
+      icon: <LeaveIcon width={18} height={18} aria-hidden="true" />,
+      callback: () => {
+        setIsModalLeaveOpen(true);
+      },
+    },
+    {
       label: t('Delete'),
-      icon: <DeleteSVG width={24} height={24} aria-hidden="true" />,
-      callback: () => deleteModal.open(),
-      disabled: !doc.abilities.destroy,
+      icon: <DeleteIcon width={18} height={18} aria-hidden="true" />,
+      callback: () => {
+        setIsModalRemoveOpen(true);
+      },
+      isHidden: !doc.abilities.destroy,
       testId: `docs-grid-actions-remove-${doc.id}`,
     },
   ];
 
-  const documentTitle = doc.title || untitledDocument;
-  const menuLabel = t('Open the menu of actions for the document: {{title}}', {
-    title: documentTitle,
-  });
-
   return (
     <>
-      <DropdownMenu
-        options={options}
-        label={menuLabel}
-        aria-label={t('More options')}
-        buttonCss={css`
-          &:hover {
-            background-color: unset;
-          }
-        `}
-      >
-        <Icon
-          data-testid={`docs-grid-actions-button-${doc.id}`}
-          icon={<MoreHorizSVG width={16} height={16} aria-hidden="true" />}
-          $theme="brand"
-          $variation="secondary"
-          $css={css`
-            cursor: pointer;
-            &:hover {
-              opacity: 0.8;
-            }
-          `}
-          aria-hidden="true"
-        />
-      </DropdownMenu>
-
-      {deleteModal.isOpen && (
+      <DocsGridDropdown doc={doc} options={options} />
+      {isModalRemoveOpen && (
         <ModalRemoveDoc
           onClose={() => {
-            deleteModal.onClose();
+            setIsModalRemoveOpen(false);
             restoreFocus();
           }}
           doc={doc}
         />
       )}
-      {shareModal.isOpen && (
+      {isModalShareOpen && (
         <DocShareModal
           doc={doc}
           onClose={() => {
-            shareModal.close();
+            setIsModalShareOpen(false);
             restoreFocus();
           }}
         />
       )}
-      {importModal.isOpen && (
+      {isModalLeaveOpen && (
+        <ConfirmationLeaveModal
+          onClose={() => {
+            setIsModalLeaveOpen(false);
+            restoreFocus();
+          }}
+          doc={doc}
+        />
+      )}
+      {isModalMoveOpen && (
         <DocMoveModal
           doc={doc}
           onClose={() => {
-            importModal.close();
+            setIsModalMoveOpen(false);
             restoreFocus();
           }}
-          isOpen={importModal.isOpen}
+          isOpen={isModalMoveOpen}
         />
       )}
     </>
+  );
+};
+
+interface DocsGridTrashbinActionsProps {
+  doc: Doc;
+}
+
+export const DocsGridTrashbinActions = ({
+  doc,
+}: DocsGridTrashbinActionsProps) => {
+  const { t } = useTranslation();
+  const { toast } = useToastProvider();
+  const { mutate: restoreDoc } = useRestoreDoc({
+    listInvalidQueries: [
+      KEY_LIST_DOC,
+      KEY_LIST_DOC_TRASHBIN,
+      KEY_LIST_FAVORITE_DOC,
+    ],
+    options: {
+      onSuccess: (_data) => {
+        toast(t('The document has been restored.'), VariantType.SUCCESS, {
+          duration: 4000,
+        });
+      },
+      onError: (error) => {
+        toast(
+          t('An error occurred while restoring the document: {{error}}', {
+            error: error?.message,
+          }),
+          VariantType.ERROR,
+          {
+            duration: 4000,
+          },
+        );
+      },
+    },
+  });
+
+  if (!doc.abilities.restore) {
+    return null;
+  }
+
+  const options: DropdownMenuItem[] = [
+    {
+      label: t('Restore'),
+      icon: (
+        <Icon
+          $size="20px"
+          iconName="undo"
+          aria-hidden="true"
+          variant="symbols-outlined"
+        />
+      ),
+      callback: () => {
+        restoreDoc({
+          docId: doc.id,
+        });
+      },
+      testId: `docs-grid-actions-restore-${doc.id}`,
+    },
+  ];
+
+  return <DocsGridDropdown doc={doc} options={options} />;
+};
+
+interface DocsGridDropdownProps {
+  doc: Doc;
+  options: DropdownMenuItem[];
+}
+
+const DocsGridDropdown = ({ doc, options }: DocsGridDropdownProps) => {
+  const { t } = useTranslation();
+  const [openDropdown, setOpenDropdown] = useState(false);
+  const { addLastFocus } = useFocusStore();
+  const { untitledDocument } = useTrans();
+
+  return (
+    <DropdownMenu
+      options={options}
+      isOpen={openDropdown}
+      shouldCloseOnInteractOutside={() => true}
+      onOpenChange={setOpenDropdown}
+    >
+      <Button
+        data-testid={`docs-grid-actions-button-${doc.id}`}
+        aria-label={t('Open the menu of actions for the document: {{title}}', {
+          title: doc.title || untitledDocument,
+        })}
+        size="nano"
+        icon={<MoreIcon width={16} height={16} aria-hidden="true" />}
+        color="neutral"
+        variant="tertiary"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          setOpenDropdown((o) => !o);
+          addLastFocus(e.currentTarget);
+        }}
+      />
+    </DropdownMenu>
   );
 };

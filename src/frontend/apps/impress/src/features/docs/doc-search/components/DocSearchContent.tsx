@@ -5,24 +5,22 @@ import { InView } from 'react-intersection-observer';
 
 import { Box } from '@/components/';
 import { QuickSearchData, QuickSearchGroup } from '@/components/quick-search';
-import { useInfiniteSearchDocs } from '@/docs/doc-management/api/useSearchDocs';
-import { DocSearchTarget } from '@/docs/doc-search';
 
-import { Doc } from '../../doc-management';
+import { DocSearch, useInfiniteSearchDocs } from '../api/useSearchDocs';
+import { useDocSearchFilterStore } from '../stores/useDocSearchFilterStore';
 
 import { DocSearchItem } from './DocSearchItem';
 
 type DocSearchContentProps = {
-  groupName: string;
+  groupName?: string;
   search: string;
-  filterResults?: (doc: Doc) => boolean;
+  filterResults?: (doc: DocSearch) => boolean;
   isSearchNotMandatory?: boolean;
-  onResults?: (results: Doc[]) => void;
-  onSelect: (doc: Doc) => void;
+  onResults?: (results: DocSearch[]) => void;
+  onSelect: (doc: DocSearch) => void;
   onLoadingChange?: (loading: boolean) => void;
-  target?: DocSearchTarget;
-  parentPath?: string;
-  renderSearchElement?: (doc: Doc) => React.ReactNode;
+  parentDocId?: string;
+  renderSearchElement?: (doc: DocSearch) => React.ReactNode;
 };
 
 export const DocSearchContent = ({
@@ -33,10 +31,10 @@ export const DocSearchContent = ({
   onSelect,
   onLoadingChange,
   renderSearchElement,
-  target,
-  parentPath,
+  parentDocId,
   isSearchNotMandatory,
 }: DocSearchContentProps) => {
+  const { filter } = useDocSearchFilterStore();
   const {
     data,
     isFetching,
@@ -48,16 +46,16 @@ export const DocSearchContent = ({
     {
       q: search,
       page: 1,
-      target,
-      parentPath,
+      filter,
+      parentDocId,
     },
     {
-      enabled: target !== DocSearchTarget.CURRENT || !!parentPath,
+      enabled: filter !== 'current' || !!parentDocId,
     },
   );
 
   const loading = isFetching || isRefetching || isLoading;
-  const [docsData, setDocsData] = useState<QuickSearchData<Doc>>({
+  const [docsData, setDocsData] = useState<QuickSearchData<DocSearch>>({
     groupName: '',
     groupKey: 'docs',
     elements: [],
@@ -67,6 +65,9 @@ export const DocSearchContent = ({
 
   useEffect(() => {
     if (loading) {
+      if (search || isSearchNotMandatory) {
+        announce(t('Loading documents...'), 'polite');
+      }
       return;
     }
 
@@ -84,7 +85,6 @@ export const DocSearchContent = ({
       groupName: groupName,
       groupKey: 'docs',
       elements,
-      emptyString: t('No document found'),
       endActions: hasNextPage
         ? [
             {
@@ -98,9 +98,11 @@ export const DocSearchContent = ({
         : [],
     });
 
-    if (search) {
+    if (search && !loading) {
       announce(
-        t('{{count}} result(s) available', { count: elements.length }),
+        elements.length === 0
+          ? t('No documents found')
+          : t('{{count}} document found', { count: elements.length }),
         'polite',
       );
     }

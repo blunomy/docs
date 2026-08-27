@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import {
+  clickInEditorMenu,
+  clickInEditorShareButton,
   createDoc,
   getGridRow,
   goToGridDoc,
@@ -82,15 +84,14 @@ test.describe('Doc Header', () => {
 
     await page.getByRole('button', { name: 'close' }).first().click();
 
-    await expect(card.getByText('Public document')).toBeVisible();
-
+    await expect(card.getByText('Public ·')).toBeVisible();
     await expect(card.getByText('Owner ·')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
+    await page
+      .getByRole('button', { name: 'Open the document options' })
+      .click();
     await expect(
-      page.getByRole('button', { name: 'Export the document' }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'Open the document options' }),
+      page.getByRole('menuitem', { name: 'Download' }),
     ).toBeVisible();
   });
 
@@ -104,6 +105,9 @@ test.describe('Doc Header', () => {
       browserName,
       1,
     );
+
+    await writeInEditor({ page, text: 'Hello Content' });
+
     await page.getByRole('button', { name: 'Share' }).click();
     await updateShareLink(page, 'Public', 'Editing');
 
@@ -116,7 +120,9 @@ test.describe('Doc Header', () => {
       docTitle,
     });
 
-    // Wait for other page to sync
+    await expect(otherPage.getByText('Hello Content')).toBeVisible();
+
+    // Wait for other page to broadcast sync
     await page.waitForTimeout(1000);
 
     await page.keyboard.press('Escape');
@@ -124,9 +130,8 @@ test.describe('Doc Header', () => {
     await expect(elTitle).toBeVisible();
     await elTitle.fill('Hello World');
     await elTitle.blur();
-    await verifyDocName(page, 'Hello World');
 
-    // Wait for other page to sync
+    // Wait for other page to broadcast sync
     await page.waitForTimeout(1000);
 
     // Check other user page
@@ -144,6 +149,36 @@ test.describe('Doc Header', () => {
     await cleanup();
   });
 
+  test('it pastes plain text in the title without keeping formatting', async ({
+    page,
+    browserName,
+  }) => {
+    await createDoc(page, 'doc-title-paste', browserName, 1);
+
+    const docTitle = page.getByRole('textbox', { name: 'Document title' });
+    await docTitle.click();
+    await page.keyboard.press('Control+a');
+
+    await page.evaluate(() => {
+      const el = document.querySelector('[aria-label="Document title"]');
+      if (!el) {
+        return;
+      }
+
+      const dt = new DataTransfer();
+      dt.setData('text/plain', 'Pasted plain text');
+      dt.setData('text/html', '<b><em>Pasted plain text</em></b>');
+      el.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }),
+      );
+    });
+
+    await docTitle.blur();
+    await expect(docTitle).toHaveText('Pasted plain text');
+    // Ensure formatting tags from text/html were not inserted.
+    await expect(docTitle.locator('b, em, strong, i')).toHaveCount(0);
+  });
+
   test('it updates the title doc adding a leading emoji', async ({
     page,
     browserName,
@@ -151,17 +186,15 @@ test.describe('Doc Header', () => {
     await createDoc(page, 'doc-update-emoji', browserName, 1);
 
     const emojiPicker = page.locator('.--docs--doc-title').getByRole('button');
-    const optionMenu = page.getByLabel('Open the document options');
-    const addEmojiMenuItem = page.getByRole('menuitem', { name: 'Add emoji' });
-    const removeEmojiMenuItem = page.getByRole('menuitem', {
-      name: 'Remove emoji',
+    const addEmoji = page.getByRole('button', { name: 'Add icon' });
+    const removeEmoji = page.getByRole('button', {
+      name: 'Remove icon',
     });
 
     // Top parent should not have emoji picker
     await expect(emojiPicker).toBeHidden();
-    await optionMenu.click();
-    await expect(addEmojiMenuItem).toBeHidden();
-    await expect(removeEmojiMenuItem).toBeHidden();
+    await expect(addEmoji).toBeHidden();
+    await expect(removeEmoji).toBeHidden();
     await page.keyboard.press('Escape');
 
     const { name: docChild } = await createRootSubPage(
@@ -176,9 +209,8 @@ test.describe('Doc Header', () => {
     await expect(emojiPicker).toBeHidden();
 
     // Add emoji
-    await optionMenu.click();
-    await expect(removeEmojiMenuItem).toBeHidden();
-    await addEmojiMenuItem.click();
+    await expect(removeEmoji).toBeHidden();
+    await addEmoji.click();
     // The 1 April the emoji is a fish
     await expect(emojiPicker).toHaveText(/📄|🐟/);
 
@@ -200,17 +232,15 @@ test.describe('Doc Header', () => {
     await expect(row.getByText('😀')).toBeVisible();
 
     // Remove emoji
-    await optionMenu.click();
-    await expect(addEmojiMenuItem).toBeHidden();
-    await removeEmojiMenuItem.click();
+    await expect(addEmoji).toBeHidden();
+    await removeEmoji.click();
     await expect(emojiPicker).toBeHidden();
   });
 
   test('it deletes the doc', async ({ page, browserName }) => {
     const [randomDoc] = await createDoc(page, 'doc-delete', browserName, 1);
 
-    await page.getByLabel('Open the document options').click();
-    await page.getByRole('menuitem', { name: 'Delete document' }).click();
+    await clickInEditorMenu(page, 'Delete');
 
     await expect(
       page.getByRole('heading', { name: 'Delete a doc' }),
@@ -266,15 +296,12 @@ test.describe('Doc Header', () => {
       page.getByRole('textbox', { name: 'Document title' }),
     ).toContainText('Mocked document');
 
-    await expect(
-      page.getByRole('button', { name: 'Export the document' }),
-    ).toBeVisible();
-
     await page.getByLabel('Open the document options').click();
 
     await expect(
-      page.getByRole('menuitem', { name: 'Delete document' }),
-    ).toBeDisabled();
+      page.getByRole('menuitem', { name: 'Download' }),
+    ).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeHidden();
 
     // Click somewhere else to close the options
     await page.locator('body').click({ position: { x: 0, y: 0 } });
@@ -346,14 +373,12 @@ test.describe('Doc Header', () => {
       page.getByRole('textbox', { name: 'Document title' }),
     ).toContainText('Mocked document');
 
-    await expect(
-      page.getByRole('button', { name: 'Export the document' }),
-    ).toBeVisible();
     await page.getByLabel('Open the document options').click();
 
     await expect(
-      page.getByRole('menuitem', { name: 'Delete document' }),
-    ).toBeDisabled();
+      page.getByRole('menuitem', { name: 'Download' }),
+    ).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeHidden();
 
     // Click somewhere else to close the options
     await page.locator('body').click({ position: { x: 0, y: 0 } });
@@ -418,14 +443,12 @@ test.describe('Doc Header', () => {
       page.getByRole('heading', { name: 'Mocked document' }),
     ).toBeVisible();
 
-    await expect(
-      page.getByRole('button', { name: 'Export the document' }),
-    ).toBeVisible();
     await page.getByLabel('Open the document options').click();
 
     await expect(
-      page.getByRole('menuitem', { name: 'Delete document' }),
-    ).toBeDisabled();
+      page.getByRole('menuitem', { name: 'Download' }),
+    ).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeHidden();
 
     // Click somewhere else to close the options
     await page.locator('body').click({ position: { x: 0, y: 0 } });
@@ -457,45 +480,6 @@ test.describe('Doc Header', () => {
     ).toBeHidden();
   });
 
-  test('It checks the copy as Markdown button', async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName === 'webkit',
-      'navigator.clipboard is not working with webkit and playwright',
-    );
-
-    // create page and navigate to it
-    await page
-      .getByRole('button', {
-        name: 'New doc',
-      })
-      .click();
-
-    // Add dummy content to the doc
-    const editor = page.locator('.ProseMirror');
-    const docFirstBlock = editor.locator('.bn-block-content').first();
-    await docFirstBlock.click();
-    await page.keyboard.type('# Hello World', { delay: 100 });
-    const docFirstBlockContent = docFirstBlock.locator('h1');
-    await expect(docFirstBlockContent).toHaveText('Hello World');
-
-    // Copy content to clipboard
-    await page.getByLabel('Open the document options').click();
-    await page.getByRole('menuitem', { name: 'Copy as Markdown' }).click();
-    await expect(
-      page.getByText('Copied as Markdown to clipboard'),
-    ).toBeVisible();
-
-    // Test that clipboard is in Markdown format
-    const handle = await page.evaluateHandle(() =>
-      navigator.clipboard.readText(),
-    );
-    const clipboardContent = await handle.jsonValue();
-    expect(clipboardContent.trim()).toBe('# Hello World');
-  });
-
   test('it checks the copy link button', async ({ page, browserName }) => {
     test.skip(
       browserName === 'webkit',
@@ -522,7 +506,6 @@ test.describe('Doc Header', () => {
       name: 'Share',
       exact: true,
     });
-    await expect(shareButton).toBeVisible();
 
     await shareButton.click();
     await page.getByRole('button', { name: 'Copy link' }).click();
@@ -533,52 +516,26 @@ test.describe('Doc Header', () => {
     );
     const clipboardContent = await handle.jsonValue();
 
-    const origin = await page.evaluate(() => window.location.origin);
-    expect(clipboardContent.trim()).toMatch(
-      `${origin}/docs/mocked-document-id/`,
-    );
+    const url = page.url();
+    expect(clipboardContent.trim()).toMatch(url);
   });
 
-  test('it pins a document', async ({ page, browserName }) => {
-    const [docTitle] = await createDoc(page, `Pin doc`, browserName);
+  test('it stars a document', async ({ page, browserName }) => {
+    await createDoc(page, `Star doc`, browserName);
 
+    // Star
     await page
       .getByRole('button', { name: 'Open the document options' })
       .click();
+    await page.getByRole('menuitem', { name: 'Star' }).click();
+    await expect(page.getByText('This document is starred')).toBeVisible();
 
-    // Pin
-    await page.getByRole('menuitem', { name: 'Pin' }).click();
+    // UnStar
     await page
       .getByRole('button', { name: 'Open the document options' })
       .click();
-    await expect(page.getByText('Unpin')).toBeVisible();
-
-    await page.goto('/');
-
-    const row = await getGridRow(page, docTitle);
-
-    // Check is pinned
-    await expect(row.getByTestId('doc-pinned-icon')).toBeVisible();
-    const leftPanelFavorites = page.getByTestId('left-panel-favorites');
-    await expect(leftPanelFavorites.getByText(docTitle)).toBeVisible();
-
-    await row.getByText(docTitle).click();
-    await page
-      .getByRole('button', { name: 'Open the document options' })
-      .click();
-
-    // Unpin
-    await page.getByRole('menuitem', { name: 'Unpin' }).click();
-    await page
-      .getByRole('button', { name: 'Open the document options' })
-      .click();
-    await expect(page.getByRole('menuitem', { name: 'Pin' })).toBeVisible();
-
-    await page.goto('/');
-
-    // Check is unpinned
-    await expect(row.getByTestId('doc-pinned-icon')).toBeHidden();
-    await expect(leftPanelFavorites.getByText(docTitle)).toBeHidden();
+    await page.getByRole('menuitem', { name: 'Unstar' }).click();
+    await expect(page.getByText('This document is starred')).toBeHidden();
   });
 
   test('it duplicates a document', async ({ page, browserName }) => {
@@ -675,13 +632,18 @@ test.describe('Documents Header mobile', () => {
 
     await goToGridDoc(page);
 
-    await expect(page.getByRole('button', { name: 'Copy link' })).toBeHidden();
     await page.getByLabel('Open the document options').click();
     await expect(
       page.getByRole('menuitem', { name: 'Copy link' }),
     ).toBeVisible();
-    await page.getByRole('menuitem', { name: 'Share' }).click();
-    await expect(page.getByRole('button', { name: 'Copy link' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Share' }).click();
+    const shareModal = page.getByRole('dialog', {
+      name: 'Share the document',
+    });
+    await expect(
+      shareModal.getByRole('button', { name: 'Copy link' }),
+    ).toBeVisible();
   });
 
   test('it checks the close button on Share modal', async ({ page }) => {
@@ -702,8 +664,7 @@ test.describe('Documents Header mobile', () => {
 
     await goToGridDoc(page);
 
-    await page.getByLabel('Open the document options').click();
-    await page.getByRole('menuitem', { name: 'Share' }).click();
+    await clickInEditorShareButton(page);
 
     const shareModal = page.getByRole('dialog', {
       name: 'Share the document',

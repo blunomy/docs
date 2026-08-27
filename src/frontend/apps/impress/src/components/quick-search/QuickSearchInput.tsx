@@ -2,12 +2,12 @@ import { Command } from 'cmdk';
 import { PropsWithChildren, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import SearchSVG from '@/assets/icons/ui-kit/zoom-rounded.svg';
 import { HorizontalSeparator } from '@/components';
 import { useCunninghamTheme } from '@/cunningham';
 import { useFocusStore } from '@/stores';
 
 import { Box } from '../Box';
-import { Icon } from '../Icon';
 
 type QuickSearchInputProps = {
   inputValue?: string;
@@ -49,24 +49,26 @@ export const QuickSearchInput = ({
         $align="center"
         className="quick-search-input"
         $gap={spacingsTokens['xxs']}
-        $padding={{ horizontal: 'base', vertical: 'xxs' }}
+        $padding={{ horizontal: 'base', vertical: 'xs' }}
       >
-        <Icon iconName="search" $variation="secondary" aria-hidden="true" />
+        <SearchSVG
+          aria-hidden="true"
+          width={24}
+          height={24}
+          color="var(--c--contextuals--content--semantic--neutral--secondary)"
+        />
         <Command.Input
           ref={inputRef}
           autoFocus={true}
-          aria-label={t('Quick search input')}
           aria-controls={listId}
           value={inputValue}
-          role="combobox"
           placeholder={placeholder ?? t('Search')}
           onValueChange={onFilter}
           maxLength={254}
-          minLength={6}
           data-testid="quick-search-input"
         />
       </Box>
-      {separator && <HorizontalSeparator $margin={{ top: 'base' }} />}
+      {separator && <HorizontalSeparator $margin={{ top: '2xs' }} />}
     </>
   );
 };

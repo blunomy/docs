@@ -1,10 +1,6 @@
 import { createGlobalStyle } from 'styled-components';
 
 export const QuickSearchStyle = createGlobalStyle`
-  & *:focus-visible {
-    outline: none;
-  }
-
   .quick-search-container {
     [cmdk-root] {
       width: 100%;
@@ -16,6 +12,7 @@ export const QuickSearchStyle = createGlobalStyle`
     }
 
     [cmdk-input] {
+      font-family: var(--c--globals--font--families--base);
       border: none;
       width: 100%;
       font-size: 16px;

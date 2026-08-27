@@ -2,10 +2,13 @@ const crypto = require('crypto');
 
 const { InjectManifest } = require('workbox-webpack-plugin');
 
+const { version } = require('./package.json');
+
 const buildId = crypto.randomBytes(256).toString('hex').slice(0, 8);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ['docs.127.0.0.1.nip.io'],
   output: 'export',
   trailingSlash: true,
   images: {
@@ -15,15 +18,10 @@ const nextConfig = {
     // Enables the styled-components SWC transform
     styledComponents: true,
   },
-  experimental: {
-    // Tree-shake barrel files for these packages so webpack only bundles the
-    // symbols that are actually imported, reducing chunk sizes noticeably for
-    // Mantine and the Cunningham design system.
-    optimizePackageImports: ['@mantine/core', '@mantine/hooks', 'lodash'],
-  },
   generateBuildId: () => buildId,
   env: {
     NEXT_PUBLIC_BUILD_ID: buildId,
+    NEXT_PUBLIC_APP_VERSION: version,
   },
   /**
    * In dev mode, Next.js doesn't use Webpack, but Turbopack.

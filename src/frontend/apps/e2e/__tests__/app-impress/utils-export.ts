@@ -6,12 +6,7 @@ import { PDFParse } from 'pdf-parse';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
-import {
-  BrowserName,
-  createDoc,
-  verifyDocName,
-  writeReport,
-} from './utils-common';
+import { BrowserName, createDoc, writeReport } from './utils-common';
 import { openSuggestionMenu } from './utils-editor';
 
 /**
@@ -27,25 +22,16 @@ export const overrideDocContent = async ({
   browserName: BrowserName;
 }) => {
   // Override content prop with assets/base-content-test-pdf.txt
-  await page.route(/\**\/documents\/\**/, async (route) => {
+  await page.route(/.*\/documents\/[^/]+\/content\/$/, async (route) => {
     const request = route.request();
-    if (
-      request.method().includes('GET') &&
-      !request.url().includes('page=') &&
-      !request.url().includes('versions') &&
-      !request.url().includes('accesses') &&
-      !request.url().includes('invitations')
-    ) {
+    if (request.method() === 'GET') {
       const response = await route.fetch();
-      const json = await response.json();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      json.content = fs.readFileSync(
-        path.join(__dirname, 'assets/base-content-test-pdf.txt'),
-        'utf-8',
-      );
       void route.fulfill({
         response,
-        body: JSON.stringify(json),
+        body: fs.readFileSync(
+          path.join(__dirname, 'assets/base-content-test-pdf.txt'),
+          'utf-8',
+        ),
       });
     } else {
       await route.continue();
@@ -59,14 +45,13 @@ export const overrideDocContent = async ({
     1,
   );
 
-  await verifyDocName(page, randomDoc);
-
   await page.waitForTimeout(1000);
 
   // Add Image SVG
-  await page.keyboard.press('Enter');
-  const { suggestionMenu } = await openSuggestionMenu({ page });
-  await suggestionMenu.getByText('Resizable image with caption').click();
+  await openSuggestionMenu({
+    page,
+    suggestion: 'Resizable image with caption',
+  });
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByText('Upload image').click();
   const fileChooser = await fileChooserPromise;
@@ -82,8 +67,10 @@ export const overrideDocContent = async ({
   await page.waitForTimeout(1000);
 
   // Add Image PNG
-  await openSuggestionMenu({ page });
-  await suggestionMenu.getByText('Resizable image with caption').click();
+  await openSuggestionMenu({
+    page,
+    suggestion: 'Resizable image with caption',
+  });
   const fileChooserPNGPromise = page.waitForEvent('filechooser');
   await page.getByText('Upload image').click();
   const fileChooserPNG = await fileChooserPNGPromise;

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@/docs/*": ["./src/features/docs/*"]
+      "@/docs/*": ["./src/features/docs/*"],
+      "@/icons/*": ["./src/assets/icons/ui-kit/*"]
     }
   },
   "include": ["src/custom-next.d.ts", "**/*.ts", "**/*.tsx"],

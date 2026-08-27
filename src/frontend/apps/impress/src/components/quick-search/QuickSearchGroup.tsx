@@ -1,7 +1,7 @@
 import { Command } from 'cmdk';
 import { ReactNode } from 'react';
 
-import { Box, Text } from '@/components';
+import { Text } from '@/components';
 
 import { QuickSearchData } from './QuickSearch';
 import { QuickSearchItem } from './QuickSearchItem';
@@ -18,16 +18,18 @@ export const QuickSearchGroup = <T,>({
   renderElement,
 }: Props<T>) => {
   return (
-    <Box>
-      <Text
-        className="--docs--quick-search-group-title"
-        as="h2"
-        $weight="700"
-        $size="sm"
-        $margin="none"
-      >
-        {group.groupName}
-      </Text>
+    <>
+      {group.groupName && (
+        <Text
+          className="--docs--quick-search-group-title"
+          as="h2"
+          $weight="700"
+          $size="sm"
+          $margin="none"
+        >
+          {group.groupName}
+        </Text>
+      )}
       <Command.Group
         key={group.groupName}
         forceMount={false}
@@ -76,6 +78,6 @@ export const QuickSearchGroup = <T,>({
           </Text>
         )}
       </Command.Group>
-    </Box>
+    </>
   );
 };
