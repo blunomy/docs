@@ -8,7 +8,49 @@ and this project adheres to
 
 ### Added
 
+- 🔧(backend) fine tune redis cache options
+- ✨(frontend) make the full last-update date available #1215
+
+### Changed
+
+- ⬆️(backend) upgrade celery to version 5.6.3
+- ⚡️(backend) stop using LEFT(value, LENGTH(path)) in sql queries
+- 🚚(project) switch docspec image to ghcr.io/docspec/api #2553
+- 🚚(global) move favorite documents API endpoint 
+  to `/documents/favorites/` #2540
+
+### Fixed
+
+- 🐛(backend) skip session creation for the liveness probe
+- 🐛(frontend) preserve page titles when adding an emoji #2586
+- 🐛(frontend) scroll to the linked block in read-only documents #2663
+- 🐛(frontend) hide the selection highlight on presenter images #2665
+- 🐛(y-provider) prevent process crash on malformed websocket frames #2673
+- 🐛(frontend) keep commented text sharp when printing to PDF #2674
+- 🐛(docker) pull minio images from quay.io #2675
+- ♿️(frontend) restore presenter focus trapping after share links #2533
+
+## [v5.6.1] - 2026-09-04
+
+### Added
+
+- ✨(frontend) export presenter slides as PDF #2487
+- 💄(frontend) redesign email confirmation standalone page #2601
+
+### Fixed
+
+- 🐛(frontend) hide Leave in the doc menu when not logged in #2626
+- 🐛(backend) allow to configure settings DATA_UPLOAD_MAX_MEMORY_SIZE
+- ➕(backend) add servestatic dependency
+
+## [v5.6.0] - 2026-09-03
+
+### Added
+
 - ✨(frontend) Add "Copy link to block" feature #2547
+- ✨(frontend) add word count to doc header toolbox #2549
+- ✨(frontend) add find and replace feature to the editor #2570
+- ✨(frontend) add math and diagram blocks to the editor #2617
 
 ### Changed
 
@@ -16,11 +58,23 @@ and this project adheres to
 - ✨(frontend) reset side panel state between documents #2583
 - ♿️(frontend) announce search loading state for screen readers #2526
 - ♻️(frontend) change favorite to star #2539
+- 🚚(frontend) add doc move to doc options #2555
+- ♻️(frontend) unified menu #2620
+- ♿(frontend) hide decorative emojis in document titles from SR #2527
 
 ### Fixed
 
 - 🐛(frontend) fix clipped formatting toolbar in new comment composer #2585
+- 🐛(backend) fix duplicating a document that has no content #2609
 - 📄(frontend) allowed partially export when MIT #2551
+- 🐛(backend) manage async support for Docs custom middleware #2619
+- 🐛(frontend) save the doc with a keepalive
+  request when leaving the page #2619
+- 🐛(frontend) export any raster image supported by the browser to a PDF #2530
+
+### Removed
+
+- 🔥(backend) remove whitenoise package #2619
 
 ## [v5.5.0] - 2026-08-24
 
@@ -1464,7 +1518,9 @@ and this project adheres to
 - ✨(frontend) Coming Soon page (#67)
 - 🚀 Impress, project to manage your documents easily and collaboratively.
 
-[unreleased]: https://github.com/suitenumerique/docs/compare/v5.5.0...main
+[unreleased]: https://github.com/suitenumerique/docs/compare/v5.6.1...main
+[v5.6.1]: https://github.com/suitenumerique/docs/releases/v5.6.0
+[v5.6.0]: https://github.com/suitenumerique/docs/releases/v5.6.0
 [v5.5.0]: https://github.com/suitenumerique/docs/releases/v5.5.0
 [v5.4.1]: https://github.com/suitenumerique/docs/releases/v5.4.1
 [v5.4.0]: https://github.com/suitenumerique/docs/releases/v5.4.0

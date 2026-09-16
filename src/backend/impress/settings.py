@@ -162,7 +162,7 @@ class Base(Configuration):
         },
         "staticfiles": {
             "BACKEND": values.Value(
-                "whitenoise.storage.CompressedManifestStaticFilesStorage",
+                "servestatic.storage.CompressedManifestStaticFilesStorage",
                 environ_name="STORAGES_STATICFILES_BACKEND",
             ),
         },
@@ -211,6 +211,8 @@ class Base(Configuration):
         environ_name="DOCUMENT_IMAGE_MAX_SIZE",
         environ_prefix=None,
     )
+
+    DATA_UPLOAD_MAX_MEMORY_SIZE = values.IntegerValue(20 * MB)  # 20 MB
 
     REACTIONS_MAX_PER_COMMENT = values.IntegerValue(
         15,
@@ -360,7 +362,8 @@ class Base(Configuration):
 
     MIDDLEWARE = [
         "django.middleware.security.SecurityMiddleware",
-        "whitenoise.middleware.WhiteNoiseMiddleware",
+        "dockerflow.django.middleware.DockerflowMiddleware",
+        "servestatic.middleware.ServeStaticMiddleware",
         "django.contrib.sessions.middleware.SessionMiddleware",
         "django.middleware.locale.LocaleMiddleware",
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -371,7 +374,6 @@ class Base(Configuration):
         "core.middleware.ForceSessionMiddleware",
         "core.middleware.SaveRawBodyMiddleware",
         "django.contrib.messages.middleware.MessageMiddleware",
-        "dockerflow.django.middleware.DockerflowMiddleware",
         "csp.middleware.CSPMiddleware",
         "waffle.middleware.WaffleMiddleware",
     ]
@@ -386,6 +388,7 @@ class Base(Configuration):
         # impress
         "core",
         "demo",
+        "servestatic",
         "drf_spectacular",
         # Third party apps
         "corsheaders",
@@ -416,6 +419,16 @@ class Base(Configuration):
     CACHES = {
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
     }
+    DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = values.BooleanValue(
+        default=True,
+        environ_name="DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS",
+        environ_prefix=None,
+    )
+    DJANGO_REDIS_LOGGER = values.Value(
+        default="core.cache.redis",
+        environ_name="DJANGO_REDIS_LOGGER",
+        environ_prefix=None,
+    )
 
     REST_FRAMEWORK = {
         "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -525,6 +538,9 @@ class Base(Configuration):
 
     # Sentry
     SENTRY_DSN = values.Value(None, environ_name="SENTRY_DSN", environ_prefix=None)
+    SENTRY_TRACES_SAMPLE_RATE = values.FloatValue(
+        0.0, environ_name="SENTRY_TRACES_SAMPLE_RATE", environ_prefix=None
+    )
 
     # Collaboration
     COLLABORATION_API_URL = values.Value(
@@ -944,7 +960,7 @@ class Base(Configuration):
         False, environ_name="CONVERSION_UPLOAD_ENABLED", environ_prefix=None
     )
     CONVERSION_FILE_MAX_SIZE = values.IntegerValue(
-        20 * MB,
+        default=DATA_UPLOAD_MAX_MEMORY_SIZE,
         environ_name="CONVERSION_FILE_MAX_SIZE",
         environ_prefix=None,
     )
@@ -980,6 +996,12 @@ class Base(Configuration):
     NO_WEBSOCKET_CACHE_TIMEOUT = values.Value(
         default=120,
         environ_name="NO_WEBSOCKET_CACHE_TIMEOUT",
+        environ_prefix=None,
+    )
+
+    DOCUMENT_NB_ACCESSES_CACHE_TIMEOUT = values.IntegerValue(
+        default=600,
+        environ_name="DOCUMENT_NB_ACCESSES_CACHE_TIMEOUT",
         environ_prefix=None,
     )
 
@@ -1026,6 +1048,13 @@ class Base(Configuration):
                     environ_prefix=None,
                 ),
                 "propagate": True,
+            },
+            "request.summary": {
+                "level": values.Value(
+                    "WARNING",
+                    environ_name="LOGGING_LEVEL_REQUEST_SUMMARY",
+                    environ_prefix=None,
+                )
             },
         },
     }
@@ -1222,7 +1251,14 @@ class Base(Configuration):
                 dsn=cls.SENTRY_DSN,
                 environment=cls.__name__.lower(),
                 release=get_release(),
-                integrations=[DjangoIntegration()],
+                traces_sample_rate=cls.SENTRY_TRACES_SAMPLE_RATE,
+                integrations=[
+                    DjangoIntegration(
+                        transaction_style="url",
+                        middleware_spans=True,
+                        cache_spans=True,
+                    )
+                ],
             )
             sentry_sdk.set_tag("application", "backend")
 
@@ -1307,7 +1343,7 @@ class Build(Base):
         },
         "staticfiles": {
             "BACKEND": values.Value(
-                "whitenoise.storage.CompressedManifestStaticFilesStorage",
+                "servestatic.storage.CompressedManifestStaticFilesStorage",
                 environ_name="STORAGES_STATICFILES_BACKEND",
             ),
         },
@@ -1378,6 +1414,18 @@ class Test(Base):
     STATIC_ROOT = None
 
     CELERY_TASK_ALWAYS_EAGER = values.BooleanValue(True)
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": values.Value(
+                "servestatic.storage.CompressedStaticFilesStorage",
+                environ_name="STORAGES_STATICFILES_BACKEND",
+            ),
+        },
+    }
 
     def __init__(self):
         # pylint: disable=invalid-name
@@ -1475,6 +1523,21 @@ class Production(Base):
             ),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": values.FloatValue(
+                    default=0.5,
+                    environ_name="CACHES_DEFAULT_SOCKET_CONNECT_TIMEOUT",
+                    environ_prefix=None,
+                ),
+                "SOCKET_TIMEOUT": values.FloatValue(
+                    default=1,
+                    environ_name="CACHES_DEFAULT_SOCKET_TIMEOUT",
+                    environ_prefix=None,
+                ),
+                "IGNORE_EXCEPTIONS": values.BooleanValue(
+                    default=True,
+                    environ_name="CACHES_DEFAULT_IGNORE_EXCEPTIONS",
+                    environ_prefix=None,
+                ),
             },
             "KEY_PREFIX": values.Value(
                 "docs",
@@ -1496,6 +1559,21 @@ class Production(Base):
             ),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": values.FloatValue(
+                    default=0.5,
+                    environ_name="CACHES_SESSION_SOCKET_CONNECT_TIMEOUT",
+                    environ_prefix=None,
+                ),
+                "SOCKET_TIMEOUT": values.FloatValue(
+                    default=1,
+                    environ_name="CACHES_SESSION_SOCKET_TIMEOUT",
+                    environ_prefix=None,
+                ),
+                "IGNORE_EXCEPTIONS": values.BooleanValue(
+                    default=False,
+                    environ_name="CACHES_SESSION_IGNORE_EXCEPTIONS",
+                    environ_prefix=None,
+                ),
             },
         },
     }

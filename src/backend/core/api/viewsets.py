@@ -23,7 +23,7 @@ from django.core.validators import URLValidator
 from django.db import DatabaseError, connection, transaction
 from django.db import models as db
 from django.db.models.expressions import RawSQL
-from django.db.models.functions import Greatest, Left, Length
+from django.db.models.functions import Greatest
 from django.http import Http404, StreamingHttpResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -486,7 +486,7 @@ class DocumentViewSet(
     8. **Favorite**: Get list of favorite documents for a user. Mark or unmark
         a document as favorite.
         Examples:
-        - GET /documents/favorite_list/
+        - GET /documents/favorites/
         - POST, DELETE /documents/{id}/favorite/
 
     9. **Create for Owner**: Create a document via server-to-server on behalf of a user.
@@ -581,22 +581,27 @@ class DocumentViewSet(
         queryset = queryset.filter(ancestors_deleted_at__isnull=True)
 
         # Filter documents to which the current user has access...
-        access_documents_ids = models.DocumentAccess.objects.filter(
-            db.Q(user=user) | db.Q(team__in=user.teams)
-        ).values_list("document_id", flat=True)
+        access_documents_ids = (
+            models.DocumentAccess.objects.filter(
+                db.Q(user=user) | db.Q(team__in=user.teams)
+            )
+            .order_by()
+            .values_list("document_id", flat=True)
+        )
 
         # ...or that were previously accessed and are not restricted
-        traced_documents_ids = models.LinkTrace.objects.filter(user=user).values_list(
-            "document_id", flat=True
+        traced_documents_ids = (
+            models.LinkTrace.objects.filter(user=user)
+            .exclude(document__link_reach=models.LinkReachChoices.RESTRICTED)
+            .order_by()
+            .values_list("document_id", flat=True)
         )
 
-        return queryset.filter(
-            db.Q(id__in=access_documents_ids)
-            | (
-                db.Q(id__in=traced_documents_ids)
-                & ~db.Q(link_reach=models.LinkReachChoices.RESTRICTED)
-            )
-        )
+        # A single `IN (... UNION ...)` lets PostgreSQL drive the query from the
+        # (small) set of document ids and probe the primary key index. The
+        # equivalent `id IN (...) OR (id IN (...) AND ...)` results in a sequential
+        # scan of the whole document table.
+        return queryset.filter(id__in=access_documents_ids.union(traced_documents_ids))
 
     def filter_queryset(self, queryset):
         """Override to apply annotations to generic views."""
@@ -838,6 +843,7 @@ class DocumentViewSet(
         detail=False,
         methods=["get"],
         permission_classes=[permissions.IsAuthenticated],
+        url_path="favorites",
     )
     def favorite_list(self, request, *args, **kwargs):
         """Get list of favorite documents for the current user."""
@@ -1043,6 +1049,9 @@ class DocumentViewSet(
                     team=owner_access.team,
                     defaults={"role": models.RoleChoices.OWNER},
                 )
+
+        # Invalidate the nb_accesses cache, the value has probably changed after the move.
+        document.invalidate_nb_accesses_cache()
 
         posthog_capture(
             PosthogEventName.DOC_MOVED,
@@ -1371,7 +1380,7 @@ class DocumentViewSet(
         user_role = document_to_duplicate.get_role(user)
         is_owner_or_admin = user_role in models.PRIVILEGED_ROLES
 
-        base64_yjs_content = document_to_duplicate.content
+        base64_yjs_content = document_to_duplicate.content or ""
 
         # Duplicate the document instance
         link_kwargs = (
@@ -1752,7 +1761,7 @@ class DocumentViewSet(
         # document. Filter to get the minimum access date for the logged-in user
         access_queryset = models.DocumentAccess.objects.filter(
             db.Q(user=user) | db.Q(team__in=user.teams),
-            document__path=Left(db.Value(document.path), Length("document__path")),
+            document__path__in=document.get_self_and_ancestors_paths(),
         ).aggregate(min_date=db.Min("created_at"))
 
         # Handle the case where the user has no accesses
@@ -1792,7 +1801,7 @@ class DocumentViewSet(
             access.created_at
             for access in models.DocumentAccess.objects.filter(
                 db.Q(user=user) | db.Q(team__in=user.teams),
-                document__path=Left(db.Value(document.path), Length("document__path")),
+                document__path__in=document.get_self_and_ancestors_paths(),
             )
         )
 
